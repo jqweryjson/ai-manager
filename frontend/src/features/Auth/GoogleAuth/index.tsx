@@ -1,8 +1,9 @@
 import { Button } from "@consta/uikit/Button";
+import { API_BASE_URL } from "@shared/config/api";
 
 export const GoogleAuthButton = () => {
   const handleGoogleLogin = () => {
-    window.location.href = "/api/auth/google";
+    window.location.href = `${API_BASE_URL}/auth/google`;
   };
 
   return (
