@@ -1,0 +1,77 @@
+import { Layout } from "@consta/uikit/Layout";
+import { User } from "@consta/uikit/User";
+import { Text } from "@consta/uikit/Text";
+import { Button } from "@consta/uikit/Button";
+import { Loader } from "@consta/uikit/Loader";
+import { IconSun } from "@consta/icons/IconSun";
+import { IconMoon } from "@consta/icons/IconMoon";
+import { useAuth } from "@shared/hooks/useAuth";
+import { useCurrentUserQuery } from "@shared/hooks/useUser";
+import { useTheme } from "@shared/hooks/useTheme";
+import { IconExit } from "@consta/icons/IconExit";
+
+export const Header = () => {
+  const { logout } = useAuth();
+  const { data: user, isLoading } = useCurrentUserQuery();
+  const { theme, setTheme } = useTheme();
+
+  const toggleTheme = () => {
+    setTheme(theme === "default" ? "dark" : "default");
+  };
+
+  if (isLoading) {
+    return (
+      <Layout
+        direction="row"
+        className="header"
+        style={{
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Loader size="s" />
+      </Layout>
+    );
+  }
+
+  if (!user) return null;
+
+  return (
+    <Layout direction="row" className="header">
+      <Layout direction="row" className="header__left">
+        <Text className="header__title" view="primary">
+          AI Ассистент
+        </Text>
+      </Layout>
+
+      <Layout direction="row" className="header__right">
+        <Button
+          onlyIcon
+          iconLeft={theme === "default" ? IconMoon : IconSun}
+          view="ghost"
+          size="s"
+          onClick={toggleTheme}
+          title={
+            theme === "default"
+              ? "Переключить на тёмную тему"
+              : "Переключить на светлую тему"
+          }
+        />
+        <User
+          name={user.name}
+          info={user.email}
+          avatarUrl={user.picture}
+          size="s"
+        />
+        <Button
+          onlyIcon
+          iconLeft={() => <IconExit size="s" />}
+          label="Выйти"
+          view="ghost"
+          size="xs"
+          onClick={logout}
+        />
+      </Layout>
+    </Layout>
+  );
+};

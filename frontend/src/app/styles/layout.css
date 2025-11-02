@@ -1,0 +1,382 @@
+/* ===== MAIN LAYOUT ===== */
+
+.layout-main {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  flex-direction: row;
+}
+
+@media (max-width: 767px) {
+  .layout-main {
+    flex-direction: column;
+  }
+}
+
+.layout-main__content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-l);
+  overflow-y: auto;
+  background: var(--color-bg-default);
+}
+
+@media (max-width: 767px) {
+  .layout-main__content {
+    padding: var(--space-m);
+  }
+}
+
+/* ===== HEADER ===== */
+
+.header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-m) var(--space-xl);
+  border-bottom: 1px solid var(--color-bg-border);
+  background: var(--color-bg-default);
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .header {
+    padding: var(--space-m);
+    gap: var(--space-m);
+  }
+}
+
+.header__left {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-xl);
+}
+
+@media (max-width: 767px) {
+  .header__left {
+    gap: var(--space-m);
+  }
+}
+
+.header__title {
+  font-size: 1rem;
+  font-weight: bold;
+  flex-shrink: 0;
+  color: var(--color-typo-brand);
+}
+
+@media (max-width: 767px) {
+  .header__title {
+    font-size: 1rem;
+  }
+}
+
+.header__right {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-m);
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .header__right {
+    gap: var(--space-s);
+  }
+}
+
+.header__user-info {
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .header__user-info {
+    display: none;
+  }
+}
+
+/* ===== SIDEBAR ===== */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  border-right: 1px solid var(--color-bg-border);
+  padding: var(--space-m);
+  gap: var(--space-s);
+  background: var(--color-bg-default);
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .sidebar {
+    display: none;
+  }
+}
+
+/* ===== MOBILE BOTTOM NAV ===== */
+
+.mobile-bottom-nav {
+  display: none;
+  flex-direction: row;
+  width: 100%;
+  height: 60px;
+  border-top: 1px solid var(--color-bg-border);
+  padding: var(--space-xs);
+  gap: var(--space-xs);
+  background: var(--color-bg-default);
+  position: relative;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 767px) {
+  .mobile-bottom-nav {
+    display: flex;
+  }
+}
+
+.mobile-bottom-nav__button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== CHAT PAGE ===== */
+
+.chat-container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  flex-direction: row;
+}
+
+@media (max-width: 767px) {
+  .chat-container {
+    flex-direction: column;
+  }
+}
+
+.chat-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.chat-header {
+  padding: var(--space-m);
+  border-bottom: 1px solid var(--color-bg-border);
+  background: var(--color-bg-ghost);
+}
+
+@media (max-width: 767px) {
+  .chat-header {
+    padding: var(--space-s);
+    gap: var(--space-s);
+  }
+}
+
+.chat-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.chat-input {
+  padding: var(--space-xl);
+  border-top: 1px solid var(--color-bg-border);
+  background: var(--color-bg-default);
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .chat-input {
+    padding: var(--space-m);
+  }
+}
+
+.chat-input__layout {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-m);
+  align-items: flex-end;
+}
+
+@media (max-width: 767px) {
+  .chat-input__layout {
+    gap: var(--space-s);
+  }
+}
+
+.chat-input__button-attach {
+  flex-shrink: 0;
+  display: flex;
+}
+
+@media (max-width: 767px) {
+  .chat-input__button-attach {
+    display: none;
+  }
+}
+
+.chat-input__field {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-input__button-send {
+  flex-shrink: 0;
+}
+
+/* ===== RETRIEVAL PANEL ===== */
+
+.retrieval-panel {
+  width: 400px;
+  height: 100%;
+  overflow-y: auto;
+  border-left: 1px solid var(--color-bg-border);
+  background: var(--color-bg-default);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .retrieval-panel {
+    display: none;
+  }
+}
+
+.retrieval-panel__header {
+  padding: var(--space-l);
+  border-bottom: 1px solid var(--color-bg-border);
+  position: sticky;
+  top: 0;
+  background: var(--color-bg-default);
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.retrieval-panel__content {
+  flex: 1;
+  padding: var(--space-l);
+  gap: var(--space-m);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.retrieval-panel__card {
+  /* Используется Card из Consta UI */
+}
+
+/* ===== ROLE COMBOBOX ===== */
+
+.role-combobox {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+}
+
+.role-combobox__buttons {
+  display: flex;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+.role-combobox__prompt {
+  margin-top: var(--space-s);
+}
+
+@media (max-width: 767px) {
+  .role-combobox__prompt {
+    margin-top: var(--space-xs);
+  }
+}
+
+.role-combobox__prompt-input {
+  width: 100%;
+}
+
+.role-combobox__prompt-status {
+  font-size: 12px;
+  color: var(--color-typo-secondary);
+  font-style: italic;
+  margin-top: var(--space-xs);
+}
+
+/* ===== INPUT BAR ===== */
+
+.input-bar {
+  padding: var(--space-xl);
+  border-top: 1px solid var(--color-bg-border);
+  background: var(--color-bg-default);
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .input-bar {
+    padding: var(--space-m);
+  }
+}
+
+.input-bar__layout {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-m);
+  align-items: flex-end;
+}
+
+@media (max-width: 767px) {
+  .input-bar__layout {
+    gap: var(--space-s);
+  }
+}
+
+.input-bar__button-attach {
+  flex-shrink: 0;
+  display: flex;
+}
+
+@media (max-width: 767px) {
+  .input-bar__button-attach {
+    display: none;
+  }
+}
+
+.input-bar__field {
+  flex: 1;
+  min-width: 0;
+}
+
+.input-bar__button-send {
+  flex-shrink: 0;
+}
+
+/* ===== WORKSPACE COMBOBOX ===== */
+
+.workspace-combobox {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .workspace-combobox {
+    flex-basis: 100%;
+  }
+}
+
+.workspace-combobox__selector {
+  width: 100%;
+}
