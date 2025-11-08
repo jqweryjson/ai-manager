@@ -1,27 +1,27 @@
 # Telegram Mini App — чекпоинты
 
-- [ ] 0. Секреты/окружение
+- [x] 0. Секреты/окружение
   - [x] TELEGRAM_BOT_TOKEN (переиспользуем токен бота из BotFather)
-  - [ ] TG_MINIAPP_URL (публичный HTTPS URL мини‑приложения)
-    - [ ] Деплой фронтенда на Netlify
-    - [ ] Получить публичный URL (например, https://your-app.netlify.app)
-    - [ ] Добавить TG_MINIAPP_URL в .env бэкенда
-    - [ ] Настроить кнопку web_app в BotFather
-  - [ ] Публичный доступ к локальному бэкенду (для разработки)
-    - [ ] Запустить Serveo туннель: ./scripts/serveo-tunnel.sh
-    - [ ] Получить публичный HTTPS URL (например, https://abc123.serveo.net)
-    - [ ] В Netlify Environment Variables: VITE_API_URL=https://your-url.serveo.net
+  - [x] TG_MINIAPP_URL (публичный HTTPS URL мини‑приложения)
+    - [x] Деплой фронтенда на Netlify
+    - [x] Получить публичный URL: https://ai-manager.netlify.app
+    - [x] Добавить TG_MINIAPP_URL в .env бэкенда
+    - [x] Настроить кнопку web_app в BotFather
+  - [x] Публичный доступ к локальному бэкенду (для разработки)
+    - [x] Настроен туннель через tuna.com
+    - [x] Публичный HTTPS URL: https://supportclone.ru.tuna.am
+    - [x] В Netlify Environment Variables: VITE_API_URL=https://supportclone.ru.tuna.am/api
 
-- [ ] 1. Backend: валидация initData
-  - [ ] Эндпоинт POST /api/tg/auth принимает initData
-  - [ ] Валидация HMAC подписи initData с TELEGRAM_BOT_TOKEN
-  - [ ] По user.id из initData находим/создаём пользователя
-  - [ ] Возвращаем наш JWT (access/refresh)
+- [x] 1. Backend: валидация initData
+  - [x] Эндпоинт POST /api/tg/auth принимает initData
+  - [x] Валидация HMAC подписи initData с TELEGRAM_BOT_TOKEN
+  - [x] По user.id из initData находим/создаём пользователя
+  - [x] Возвращаем наш JWT (access/refresh)
 
-- [ ] 2. Frontend: маршрут /tg
-  - [ ] Роут /tg с инициализацией Telegram WebApp SDK (ready, expand)
-  - [ ] Чтение window.Telegram.WebApp.initData и POST на /api/tg/auth
-  - [ ] Сохранение JWT и переход в компактный чат
+- [x] 2. Frontend: маршрут /tg
+  - [x] Роут /tg с инициализацией Telegram WebApp SDK (ready, expand)
+  - [x] Чтение window.Telegram.WebApp.initData и POST на /api/tg/auth
+  - [x] Сохранение JWT и переход в компактный чат
 
 - [ ] 3. Тема/размеры
   - [ ] Применение themeParams к CSS переменным, слушатели изменений

@@ -3,6 +3,7 @@ import { ThemeProvider, QueryProvider } from "./providers";
 import { ProtectedAppLayout } from "@/widgets/Layout";
 import { AuthPage } from "@/pages/AuthPage";
 import { ChatPage } from "@/pages/ChatPage";
+import { TelegramPage } from "@/pages/TelegramPage";
 import "./styles/index.css";
 import "./styles/layout.css";
 
@@ -13,6 +14,7 @@ export const App = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/tg" element={<TelegramPage />} />
             {/* Родительский роут с авторизацией и MainLayout */}
             <Route path="/app" element={<ProtectedAppLayout />}>
               {/* Index route: редирект на /app/chat */}

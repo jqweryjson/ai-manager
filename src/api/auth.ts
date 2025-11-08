@@ -5,6 +5,7 @@ import {
   findUserByEmail,
   createUser,
   getUserById,
+  findUserByTelegramId,
 } from "../core/user-postgres.js";
 import { createSession, deleteAllUserSessions } from "../core/session.js";
 import {
@@ -14,6 +15,10 @@ import {
   type AuthenticatedRequest,
 } from "../middleware/auth.js";
 import type { JWTPayload } from "../types/auth.js";
+import {
+  validateTelegramInitData,
+  parseTelegramInitData,
+} from "../core/telegram-auth.js";
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:8002";
 
@@ -127,6 +132,90 @@ export async function authRoutes(fastify: FastifyInstance) {
       };
     } catch (error) {
       return reply.status(401).send({ error: "Invalid refresh token" });
+    }
+  });
+
+  // Telegram Mini App авторизация
+  fastify.post("/tg/auth", async (request, reply) => {
+    const { initData } = request.body as { initData?: string };
+
+    if (!initData) {
+      return reply.status(400).send({ error: "initData is required" });
+    }
+
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken) {
+      fastify.log.error("TELEGRAM_BOT_TOKEN is not set");
+      return reply.status(500).send({ error: "Server configuration error" });
+    }
+
+    // Валидация HMAC подписи
+    if (!validateTelegramInitData(initData, botToken)) {
+      fastify.log.warn("Invalid Telegram initData signature");
+      return reply.status(401).send({ error: "Invalid initData signature" });
+    }
+
+    // Парсинг данных пользователя
+    const telegramUser = parseTelegramInitData(initData);
+    if (!telegramUser || !telegramUser.id) {
+      return reply.status(400).send({ error: "Invalid user data in initData" });
+    }
+
+    try {
+      // Поиск существующего пользователя по telegram_id
+      let user = await findUserByTelegramId(telegramUser.id.toString());
+
+      // Если пользователь не найден, создаём нового
+      if (!user) {
+        const fullName = `${telegramUser.first_name}${
+          telegramUser.last_name ? ` ${telegramUser.last_name}` : ""
+        }`;
+
+        user = await createUser({
+          email: `tg_${telegramUser.id}@telegram.local`, // Временный email для Telegram пользователей
+          name: fullName,
+          ...(telegramUser.photo_url && { picture: telegramUser.photo_url }),
+          telegramId: telegramUser.id.toString(),
+        });
+
+        fastify.log.info(
+          `✅ Создан новый пользователь из Telegram: ${user.id}`
+        );
+      }
+
+      // Генерация JWT токенов
+      const accessToken = generateAccessToken({
+        userId: user.id,
+        email: user.email,
+      });
+
+      const refreshToken = generateRefreshToken({
+        userId: user.id,
+        email: user.email,
+      });
+
+      // Создание сессии
+      await createSession(user.id, {
+        email: user.email,
+        name: user.name,
+        picture: user.picture ?? "",
+      });
+
+      fastify.log.info(`🔐 Telegram авторизация успешна: ${user.id}`);
+
+      return {
+        accessToken,
+        refreshToken,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          picture: user.picture,
+        },
+      };
+    } catch (error) {
+      fastify.log.error(`❌ Ошибка Telegram авторизации: ${error}`);
+      return reply.status(500).send({ error: "Internal server error" });
     }
   });
 }
