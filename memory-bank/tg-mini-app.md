@@ -3,14 +3,14 @@
 - [x] 0. Секреты/окружение
   - [x] TELEGRAM_BOT_TOKEN (переиспользуем токен бота из BotFather)
   - [x] TG_MINIAPP_URL (публичный HTTPS URL мини‑приложения)
-    - [x] Деплой фронтенда на Netlify
-    - [x] Получить публичный URL: https://ai-manager.netlify.app
+    - [x] Деплой фронтенда на Render.com
+    - [x] Публичный URL: https://ai-manager-front.onrender.com
     - [x] Добавить TG_MINIAPP_URL в .env бэкенда
     - [x] Настроить кнопку web_app в BotFather
   - [x] Публичный доступ к локальному бэкенду (для разработки)
     - [x] Настроен туннель через tuna.com
     - [x] Публичный HTTPS URL: https://supportclone.ru.tuna.am
-    - [x] В Netlify Environment Variables: VITE_API_URL=https://supportclone.ru.tuna.am/api
+    - [x] В Render Environment Variables: VITE_API_URL=https://supportclone.ru.tuna.am/api
 
 - [x] 1. Backend: валидация initData
   - [x] Эндпоинт POST /api/tg/auth принимает initData

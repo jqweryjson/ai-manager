@@ -55,12 +55,6 @@ export const TelegramPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Если уже авторизован, переходим в приложение
-    if (isAuthenticated) {
-      navigate("/app/chat", { replace: true });
-      return;
-    }
-
     // Проверяем, что мы в Telegram WebApp
     if (!window.Telegram?.WebApp) {
       setError("Это приложение доступно только в Telegram");
@@ -73,6 +67,12 @@ export const TelegramPage = () => {
     // Инициализация Telegram WebApp
     tg.ready();
     tg.expand();
+
+    // Если уже авторизован и мы внутри Telegram, просто переходим в чат
+    if (isAuthenticated) {
+      navigate("/app/chat", { replace: true });
+      return;
+    }
 
     // Получаем initData
     const initData = tg.initData;
