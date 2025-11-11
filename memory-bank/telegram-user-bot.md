@@ -1,0 +1,222 @@
+# Telegram User Bot (MTProto) — чекпоинты
+
+- [ ] 0. Секреты/окружение
+  - [ ] BACKEND_SECRET (ключ для шифрования AES‑GCM)
+  - [ ] VITE_API_URL (фронт → API)
+
+- [ ] 1. UX/поток (страница `/app/integrations`)
+  - [x] Карточка "Telegram (User Bot)" со статусами:
+    - [x] Базовая карточка с поддержкой статусов (preparing/connected/not_connected)
+    - [x] Кнопки "Подключить"/"Отключить"/"Скоро" в зависимости от статуса
+    - [x] Раскрытие карточки на всю высоту при клике
+    - [ ] Не подключено → кнопка "Подключить" → мастер из 3 шагов (TODO)
+    - [ ] Подключено → список аккаунтов/чаты/переключатели/"Отключить" (TODO)
+  - [ ] Мастер подключения:
+    - [ ] Шаг 1: Ключи разработчика
+      - [ ] Открыть `https://my.telegram.org/auth` (в новой вкладке)
+      - [ ] На `https://my.telegram.org/app` создать приложение → получить `api_id`, `api_hash`
+      - [ ] Ввести `api_id`, `api_hash` в форму мастера
+    - [ ] Шаг 2: Логин по MTProto
+      - [ ] Ввести телефон → отправить код → ввести код → (если включён) 2FA пароль
+      - [ ] Сформировать и сохранить зашифрованную MTProto-сессию на бэкенде
+    - [ ] Шаг 3: Выбор чатов
+      - [ ] Загрузить диалоги/ЛС → мультивыбор → сохранить подписки и опции автоответов
+
+- Примечания:
+  - Вне Telegram Mini App номер телефона недоступен — пользователь вводит вручную.
+  - Переход на внешние страницы — в новой вкладке, с инструкцией в UI.
+
+- [x] 2. Архитектура и безопасность
+  - [x] Установка gramjs: `npm install telegram`
+  - [x] Создать модуль `src/core/telegram-mtproto.ts`
+    - [x] Инициализация TelegramClient с api_id, api_hash
+    - [x] Функция `createClient(apiId, apiHash, sessionString?)`
+    - [x] Функция `sendCode(client, phone)` → возвращает phoneCodeHash
+    - [x] Функция `signIn(client, phone, code, phoneCodeHash)` → возвращает requires2FA/успех
+    - [x] Функция `signInWithPassword(client, password)` → завершает авторизацию
+    - [x] Функция `getSessionString(client)` → сериализация сессии для хранения
+    - [x] Функция `restoreSession(sessionString, apiId, apiHash)` → восстановление клиента
+    - [x] Безопасное управление соединением: `await client.connect()` перед `invoke`, гарантированное `safeDisconnect()` в `finally`
+  - [x] Хранение `api_id`, `api_hash`, `session` — только зашифрованно (AES‑GCM)
+  - [x] Изоляция по `user_id`, ACL, логи
+  - [ ] Фоновые задачи для автоответов
+
+- [x] 3. Backend API (контракты)
+  - [x] Создать `src/api/telegram-user.ts` с роутами
+  - [x] POST `/api/tg-user/start`
+    - [x] Валидация входных данных: `{ api_id, api_hash, phone }`
+    - [x] Проверка авторизации (authMiddleware)
+    - [x] Создание TelegramClient
+    - [x] Вызов `sendCode(client, phone)`
+    - [x] Сохранение сессии в БД (статус: "pending_code")
+    - [x] Возврат `{ account_id, phone_code_hash }`
+    - [x] Обработка FloodWait → сохранение статуса "flood_wait" с временем ожидания
+  - [x] POST `/api/tg-user/verify`
+    - [x] Валидация: `{ account_id, code }`
+    - [x] Проверка авторизации и ownership аккаунта
+    - [x] Получение аккаунта из БД (статус должен быть "pending_code")
+    - [x] Восстановление TelegramClient из сохранённой сессии
+    - [x] Вызов `signIn(client, phone, code, phoneCodeHash)`
+    - [x] Если требует 2FA → обновление статуса на "pending_2fa", возврат `{ requires_2fa: true }`
+    - [x] Если успешно → получение sessionString, шифрование, обновление в БД (статус: "connected")
+    - [x] Возврат `{ success: true, account_id }`
+  - [x] POST `/api/tg-user/2fa`
+    - [x] Валидация: `{ account_id, password }`
+    - [x] Проверка авторизации и ownership
+    - [x] Получение аккаунта из БД (статус должен быть "pending_2fa")
+    - [x] Восстановление TelegramClient из сохранённой сессии
+    - [x] Вызов `signInWithPassword(client, password)`
+    - [x] Обновление sessionString, шифрование, статус: "connected"
+    - [x] Возврат `{ success: true, account_id }`
+  - [x] GET `/api/tg-user/status`
+    - [x] Проверка авторизации
+    - [x] Получение всех аккаунтов пользователя из БД
+    - [x] Возврат `{ accounts: [{ id, phone, status, flood_wait_until, created_at }] }`
+  - [x] POST `/api/tg-user/disconnect`
+    - [x] Валидация: `{ account_id }`
+    - [x] Проверка авторизации и ownership
+    - [x] Удаление аккаунта и подписок из БД (CASCADE)
+    - [x] Возврат `{ success: true }`
+  - [ ] GET `/api/tg-user/dialogs`
+    - [ ] Проверка авторизации
+    - [ ] Параметр `account_id` (опционально, если несколько аккаунтов)
+    - [ ] Получение зашифрованной сессии из БД, расшифровка
+    - [ ] Восстановление TelegramClient
+    - [ ] Вызов `client.getDialogs()`
+    - [ ] Форматирование: `{ peer_id, type, title, unread_count }[]`
+    - [ ] Возврат списка диалогов
+  - [ ] POST `/api/tg-user/subscriptions`
+    - [ ] Валидация: `{ account_id, items: [{ peer_id, type, title, enabled }] }`
+    - [ ] Проверка авторизации и ownership аккаунта
+    - [ ] Сохранение/обновление подписок в БД
+    - [ ] Возврат `{ success: true }`
+  - [ ] POST `/api/tg-user/send`
+    - [ ] Валидация: `{ account_id, peer_id, message }`
+    - [ ] Проверка авторизации и ownership
+    - [ ] Проверка статуса аккаунта (не должен быть "flood_wait")
+    - [ ] Восстановление TelegramClient из сессии
+    - [ ] Вызов `client.sendMessage(peer, message)`
+    - [ ] Обработка FloodWait → обновление статуса на "flood_wait" с временем ожидания
+    - [ ] Возврат `{ success: true, message_id }` или `{ error: "flood_wait", wait_until: timestamp }`
+  - [ ] POST `/api/tg-user/disconnect`
+    - [ ] Валидация: `{ account_id }`
+    - [ ] Проверка авторизации и ownership
+    - [ ] Удаление аккаунта и подписок из БД (CASCADE)
+    - [ ] Возврат `{ success: true }`
+
+- Ошибки/лимиты:
+  - [ ] FloodWait/429 → сохранение статуса "flood_wait" в БД с временем ожидания, возврат статуса пользователю
+  - [x] Invalid credentials → понятные сообщения об ошибках (API_ID_INVALID, API_HASH_INVALID), нормализация ввода (`trim`, числовая проверка api_id)
+  - [x] Логирование ключевых действий/ошибок (api_id тип, user_id, account_id)
+
+- [x] 4. Фронтенд
+  - [x] Карточка Telegram: состояния, действия
+    - [x] Создана структура feature `TelegramIntegration` (FSD)
+    - [x] Компонент `TelegramIntegrationCard` с поддержкой статусов (preparing/connected/not_connected)
+    - [x] Переиспользуемый компонент `ExpandableCard` для раскрытия/сворачивания
+    - [x] Страница `/app/integrations` с массивом интеграций (масштабируемая структура)
+    - [x] Логика раскрытия: клик по карточке → разворачивается на всю высоту, остальные скрываются
+    - [x] Кнопка закрытия для сворачивания карточки
+    - [x] Кнопка "Получить API ключи" (открывает my.telegram.org/auth)
+    - [x] Форма ввода api_id и api_hash
+    - [x] Кнопка "Подключить" с валидацией полей
+  - [x] API клиент: `frontend/src/shared/api/telegram-user.ts`
+    - [x] `startConnection(apiId, apiHash, phone)` → POST `/api/tg-user/start` (возвращает account_id)
+    - [x] `verifyCode(accountId, code)` → POST `/api/tg-user/verify`
+    - [x] `verify2FA(accountId, password)` → POST `/api/tg-user/2fa`
+    - [x] `getStatus()` → GET `/api/tg-user/status`
+    - [x] `disconnect(accountId)` → POST `/api/tg-user/disconnect`
+    - [ ] `getDialogs(accountId?)` → GET `/api/tg-user/dialogs`
+    - [ ] `saveSubscriptions(accountId, items)` → POST `/api/tg-user/subscriptions`
+    - [ ] `sendMessage(accountId, peerId, message)` → POST `/api/tg-user/send` (опционально, для будущего использования)
+  - [ ] Мастер подключения (Stepper): Шаг 1 → Шаг 2 → Шаг 3
+    - [ ] Шаг 1: Ввод API ключей (уже есть форма)
+      - [ ] Валидация api_id (число)
+      - [ ] Валидация api_hash (строка)
+      - [ ] Кнопка "Далее" → переход на шаг 2
+    - [ ] Шаг 2: Авторизация по телефону
+      - [ ] Поле ввода телефона (международный формат)
+      - [ ] Кнопка "Отправить код" → вызов `startConnection`
+      - [ ] Поле ввода кода (6 цифр)
+      - [ ] Кнопка "Подтвердить" → вызов `verifyCode`
+      - [ ] Если требует 2FA → поле ввода пароля + кнопка "Подтвердить" → вызов `verify2FA`
+      - [ ] Обработка ошибок (неверный код, FloodWait)
+      - [ ] При успехе → переход на шаг 3
+    - [ ] Шаг 3: Выбор чатов
+      - [ ] Загрузка диалогов через `getDialogs()`
+      - [ ] Список чатов с поиском/фильтрацией
+      - [ ] Мультивыбор чатов (чекбоксы)
+      - [ ] Кнопка "Сохранить" → вызов `saveSubscriptions`
+      - [ ] При успехе → обновление статуса карточки на "connected"
+  - [ ] UI для подключенного состояния
+    - [ ] Список подключенных аккаунтов (если несколько)
+    - [ ] Отображение статуса аккаунта (connected/flood_wait/pending_code/pending_2fa)
+    - [ ] Если flood_wait → показ времени ожидания до `flood_wait_until`
+    - [ ] Список подписок (чаты) с тумблерами enabled/disabled
+    - [ ] Кнопка "Отключить" → вызов `disconnect`
+  - [ ] Никаких секретов на фронте; всё через API
+
+- [x] 5. БД и шифрование
+  - [x] Миграция: таблица `telegram_accounts`
+    - [ ] Поля: id, user_id, api_id (encrypted), api_hash (encrypted), session (encrypted), status, phone, phone_code_hash, flood_wait_until, created_at, updated_at
+    - [ ] Статусы: "pending_code", "pending_2fa", "connected", "flood_wait"
+    - [ ] Индексы: user_id, status
+    - [ ] Foreign key на users(id) ON DELETE CASCADE
+  - [x] Миграция: таблица `telegram_subscriptions`
+    - [ ] Поля: id, telegram_account_id, peer_id, peer_type, title, enabled, last_activity_at
+    - [ ] Индексы: telegram_account_id, peer_id
+    - [ ] Foreign key на telegram_accounts(id) ON DELETE CASCADE
+  - [x] Утилиты шифрования: `src/core/encryption.ts`
+    - [x] Функция `encrypt(data: string, key: string): string` (AES-GCM)
+    - [x] Функция `decrypt(encrypted: string, key: string): string`
+    - [x] Использование `BACKEND_SECRET` из env
+    - [x] Обработка ошибок шифрования/дешифрования
+  - [ ] (Опционально) Таблица `telegram_outbox_logs` для логирования отправок
+
+- [ ] 6. Тестирование
+  - [ ] E2E: мастер, диалоги, выбор чатов
+  - [ ] Негативные: неверный код/2FA, FloodWait/429
+  - [ ] Мобайл/десктоп: адаптивность мастера/списков
+
+- [ ] 7. Риски/ограничения
+  - [ ] `my.telegram.org` в iframe — нельзя (SAMEORIGIN)
+  - [ ] Телефон из Mini App — недоступен; ввод вручную
+  - [ ] Возможные ограничения Telegram DC → отображение статуса пользователю
+
+- [ ] 8. Роудмап (итерации)
+  - [x] Итерация 1: Базовая инфраструктура
+    - [x] Установка gramjs
+    - [x] Миграции БД (telegram_accounts, telegram_subscriptions)
+    - [x] Утилиты шифрования (encryption.ts)
+    - [x] Базовый модуль telegram-mtproto.ts (создание клиента, sendCode, signIn, signInWithPassword, getSessionString, restoreSession)
+  - [x] Итерация 2: Авторизация (start/verify/2fa)
+    - [x] Эндпоинт POST `/api/tg-user/start` (создание аккаунта в БД со статусом "pending_code")
+    - [x] Эндпоинт POST `/api/tg-user/verify` (обновление сессии, статус "pending_2fa" или "connected")
+    - [x] Эндпоинт POST `/api/tg-user/2fa` (завершение авторизации, статус "connected")
+    - [x] Шифрование и сохранение session в БД на каждом шаге
+    - [x] Эндпоинт GET `/api/tg-user/status`
+    - [x] Фронтенд: API клиент + формы в карточке (ключи/телефон/код/2FA)
+  - [ ] Итерация 3: Диалоги и подписки
+    - [ ] Эндпоинт GET `/api/tg-user/dialogs`
+    - [ ] Эндпоинт POST `/api/tg-user/subscriptions`
+    - [ ] Фронтенд: шаг 3 мастера (выбор чатов)
+    - [ ] Фронтенд: UI списка подписок
+  - [ ] Итерация 4: Отправка сообщений
+    - [ ] Эндпоинт POST `/api/tg-user/send`
+    - [ ] Обработка FloodWait (сохранение статуса)
+    - [ ] Логирование отправок (опционально: telegram_outbox_logs)
+  - [ ] Итерация 5: Отключение и управление
+    - [ ] Эндпоинт POST `/api/tg-user/disconnect`
+    - [ ] Фронтенд: кнопка "Отключить"
+    - [ ] Управление несколькими аккаунтами (если нужно)
+  - [ ] Итерация 6: Автоответы (будущее)
+    - [ ] Фоновые воркеры для мониторинга новых сообщений
+    - [ ] Интеграция с chat API для генерации ответов
+    - [ ] Троттлинг и rate limiting
+    - [ ] Мониторинг и алерты
+
+- [ ] 9. Definition of Done
+  - [ ] Аккаунт подключается; session зашифрована и хранится безопасно
+  - [ ] Диалоги грузятся; подписки сохраняются
+  - [ ] UI адаптивный; ошибки обработаны; секреты защищены
+  - [ ] Статус flood_wait корректно отображается пользователю

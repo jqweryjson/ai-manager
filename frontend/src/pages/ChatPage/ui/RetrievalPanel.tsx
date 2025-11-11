@@ -2,6 +2,7 @@ import { Card } from "@consta/uikit/Card";
 import { Text } from "@consta/uikit/Text";
 import type { ChatRetrievalResponse } from "@/shared/api/chat";
 import { Layout } from "@consta/uikit/Layout";
+import "./RetrievalPanel.css";
 
 interface RetrievalPanelProps {
   data: ChatRetrievalResponse | null;

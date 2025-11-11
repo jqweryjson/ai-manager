@@ -3,6 +3,7 @@ import { Button } from "@consta/uikit/Button";
 import { TextField } from "@consta/uikit/TextField";
 import { IconSendMessage } from "@consta/icons/IconSendMessage";
 import type React from "react";
+import "./InputBar.css";
 
 interface InputBarProps {
   value: string;

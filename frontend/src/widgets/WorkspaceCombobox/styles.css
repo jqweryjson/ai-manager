@@ -1,0 +1,16 @@
+/* ===== WORKSPACE COMBOBOX ===== */
+
+.workspace-combobox {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .workspace-combobox {
+    flex-basis: 100%;
+  }
+}
+
+.workspace-combobox__selector {
+  width: 100%;
+}

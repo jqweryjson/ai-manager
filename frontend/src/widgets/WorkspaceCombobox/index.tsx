@@ -7,6 +7,7 @@ import {
 import { useWorkspace } from "@/shared/hooks/useWorkspace";
 import type { Workspace } from "@/shared/context/WorkspaceContext";
 import { EntityCombobox } from "@/shared/ui/EntityCombobox";
+import "./styles.css";
 
 interface WorkspaceComboboxProps {
   mode: "switcher" | "selector";
