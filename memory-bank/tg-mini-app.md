@@ -3,10 +3,11 @@
 - [x] 0. Секреты/окружение
   - [x] TELEGRAM_BOT_TOKEN (переиспользуем токен бота из BotFather)
   - [x] TG_MINIAPP_URL (публичный HTTPS URL мини‑приложения)
-    - [x] Деплой фронтенда на Render.com
+    - [x] Деплой фронтенда на Render.com (Static Site)
     - [x] Публичный URL: https://ai-manager-front.onrender.com
+    - [x] Настроить Rewrite Rule в Render: /\* → /index.html (для SPA роутинга)
     - [x] Добавить TG_MINIAPP_URL в .env бэкенда
-    - [x] Настроить кнопку web_app в BotFather
+    - [x] Настроить кнопку web_app в BotFather на https://ai-manager-front.onrender.com/tg
   - [x] Публичный доступ к локальному бэкенду (для разработки)
     - [x] Настроен туннель через tuna.com
     - [x] Публичный HTTPS URL: https://supportclone.ru.tuna.am
@@ -33,12 +34,15 @@
 
 - [ ] 5. Интеграция с ботом
   - [ ] Кнопка web_app в меню/клавиатуре бота
-  - [ ] Deep link t.me/<bot>?startapp=<payload>
+  - [ ] Deep link t.me/<bot>?startapp=<payload> (http://t.me/intellegenceclonebot/app)
 
 - [ ] 6. Тестирование
   - [ ] iOS/Android: ресайз, клавиатура, темы
   - [ ] Ошибки сети, повторная аутентификация
 
-- [ ] 7. Прод/деплой
-  - [ ] HTTPS, корректный CSP (script-src, connect-src)
+- [x] 7. Прод/деплой
+  - [x] HTTPS (Render автоматически предоставляет)
+  - [x] Настроен SPA роутинг через Rewrite Rules в Render
+  - [x] Telegram Mini App работает: https://ai-manager-front.onrender.com/tg
+  - [ ] CSP заголовки (опционально, если потребуется)
   - [ ] Настройки домена/URL, при необходимости webhook

@@ -5,6 +5,7 @@ import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { ThemeProvider } from "@/app/providers/ThemeProvider";
+import "./styles.css";
 
 interface MainLayoutProps {
   children: ReactNode;

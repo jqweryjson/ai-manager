@@ -10,6 +10,7 @@ import type { AssistantRole } from "@/shared/api/roles";
 import { EntityCombobox } from "@/shared/ui/EntityCombobox";
 import type { ExtraFieldsHandlers } from "@/shared/ui/EntityCombobox";
 import { RolePromptField } from "../RolePromptField";
+import "./styles.css";
 
 interface RoleComboboxProps {
   mode?: "switcher" | "selector";

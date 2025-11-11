@@ -34,7 +34,7 @@ export const DocumentManagementPanel = ({
           label="Управление базой знаний"
         />
 
-        <Text size="2xs" view="ghost" align="right">
+        <Text size="2xs" view="ghost">
           На основе чего отвечает ассистент
         </Text>
       </div>

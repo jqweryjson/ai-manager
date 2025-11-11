@@ -36,13 +36,12 @@ export const MobileBottomNav = () => {
         <Button
           onlyIcon
           iconLeft={IconSettings}
-          view={isActive("/app/settings") ? "primary" : "clear"}
+          view={isActive("/app/integrations") ? "primary" : "clear"}
           size="m"
-          title="Настройки"
-          onClick={() => navigate("/app/settings")}
+          title="Интеграции"
+          onClick={() => navigate("/app/integrations")}
         />
       </div>
     </div>
   );
 };
-

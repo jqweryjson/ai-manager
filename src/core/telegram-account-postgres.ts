@@ -1,0 +1,298 @@
+import { withPostgres, withTransaction } from "./postgres.js";
+import { encrypt, decrypt } from "./encryption.js";
+
+export type TelegramAccountStatus =
+  | "pending_code"
+  | "pending_2fa"
+  | "connected"
+  | "flood_wait";
+
+export interface TelegramAccount {
+  id: string;
+  user_id: string;
+  api_id: string; // зашифрованный
+  api_hash: string; // зашифрованный
+  session: string | null; // зашифрованный
+  status: TelegramAccountStatus;
+  phone: string | null;
+  phone_code_hash: string | null;
+  flood_wait_until: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+const BACKEND_SECRET = process.env.BACKEND_SECRET || "";
+
+if (!BACKEND_SECRET) {
+  console.warn(
+    "⚠️  BACKEND_SECRET не установлен, шифрование не будет работать"
+  );
+}
+
+/**
+ * Создаёт новый Telegram аккаунт
+ */
+export async function createTelegramAccount(
+  userId: string,
+  apiId: string,
+  apiHash: string,
+  phone: string,
+  phoneCodeHash: string,
+  sessionString?: string
+): Promise<TelegramAccount> {
+  const accountId = `tg_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+  const encryptedApiId = encrypt(apiId, BACKEND_SECRET);
+  const encryptedApiHash = encrypt(apiHash, BACKEND_SECRET);
+  const encryptedSession = sessionString
+    ? encrypt(sessionString, BACKEND_SECRET)
+    : null;
+
+  return await withTransaction(async client => {
+    const result = await client.query(
+      `INSERT INTO telegram_accounts 
+       (id, user_id, api_id, api_hash, session, status, phone, phone_code_hash, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+       RETURNING *`,
+      [
+        accountId,
+        userId,
+        encryptedApiId,
+        encryptedApiHash,
+        encryptedSession,
+        "pending_code",
+        phone,
+        phoneCodeHash,
+      ]
+    );
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      user_id: row.user_id,
+      api_id: row.api_id,
+      api_hash: row.api_hash,
+      session: row.session,
+      status: row.status,
+      phone: row.phone,
+      phone_code_hash: row.phone_code_hash,
+      flood_wait_until: row.flood_wait_until,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    };
+  });
+}
+
+/**
+ * Получает аккаунт по ID с проверкой ownership
+ */
+export async function getTelegramAccount(
+  accountId: string,
+  userId: string
+): Promise<TelegramAccount | null> {
+  return await withPostgres(async client => {
+    const result = await client.query(
+      `SELECT * FROM telegram_accounts 
+       WHERE id = $1 AND user_id = $2`,
+      [accountId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      user_id: row.user_id,
+      api_id: row.api_id,
+      api_hash: row.api_hash,
+      session: row.session,
+      status: row.status,
+      phone: row.phone,
+      phone_code_hash: row.phone_code_hash,
+      flood_wait_until: row.flood_wait_until,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    };
+  });
+}
+
+/**
+ * Получает все аккаунты пользователя
+ */
+export async function getUserTelegramAccounts(
+  userId: string
+): Promise<TelegramAccount[]> {
+  return await withPostgres(async client => {
+    const result = await client.query(
+      `SELECT * FROM telegram_accounts 
+       WHERE user_id = $1 
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+
+    return result.rows.map(row => ({
+      id: row.id,
+      user_id: row.user_id,
+      api_id: row.api_id,
+      api_hash: row.api_hash,
+      session: row.session,
+      status: row.status,
+      phone: row.phone,
+      phone_code_hash: row.phone_code_hash,
+      flood_wait_until: row.flood_wait_until,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }));
+  });
+}
+
+/**
+ * Обновляет сессию и статус аккаунта
+ */
+export async function updateTelegramAccountSession(
+  accountId: string,
+  userId: string,
+  sessionString: string,
+  status: TelegramAccountStatus
+): Promise<void> {
+  const encryptedSession = encrypt(sessionString, BACKEND_SECRET);
+
+  await withPostgres(async client => {
+    await client.query(
+      `UPDATE telegram_accounts 
+       SET session = $1, status = $2, updated_at = NOW()
+       WHERE id = $3 AND user_id = $4`,
+      [encryptedSession, status, accountId, userId]
+    );
+  });
+}
+
+/**
+ * Обновляет статус аккаунта
+ */
+export async function updateTelegramAccountStatus(
+  accountId: string,
+  userId: string,
+  status: TelegramAccountStatus,
+  floodWaitUntil?: Date | null
+): Promise<void> {
+  await withPostgres(async client => {
+    await client.query(
+      `UPDATE telegram_accounts 
+       SET status = $1, flood_wait_until = $2, updated_at = NOW()
+       WHERE id = $3 AND user_id = $4`,
+      [status, floodWaitUntil || null, accountId, userId]
+    );
+  });
+}
+
+/**
+ * Получает расшифрованные данные аккаунта
+ */
+export function decryptTelegramAccount(account: TelegramAccount): {
+  apiId: number;
+  apiHash: string;
+  session: string | null;
+} {
+  const apiId = parseInt(decrypt(account.api_id, BACKEND_SECRET), 10);
+  const apiHash = decrypt(account.api_hash, BACKEND_SECRET);
+  const session = account.session
+    ? decrypt(account.session, BACKEND_SECRET)
+    : null;
+
+  return { apiId, apiHash, session };
+}
+
+/**
+ * Удаляет аккаунт
+ */
+export async function deleteTelegramAccount(
+  accountId: string,
+  userId: string
+): Promise<void> {
+  await withPostgres(async client => {
+    await client.query(
+      `DELETE FROM telegram_accounts 
+       WHERE id = $1 AND user_id = $2`,
+      [accountId, userId]
+    );
+  });
+}
+
+// ---------------- Subscriptions ----------------
+
+export interface TelegramSubscription {
+  id: string;
+  telegram_account_id: string;
+  peer_id: string;
+  peer_type: "user" | "chat" | "channel";
+  title: string;
+  enabled: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export async function listSubscriptions(
+  accountId: string,
+  userId: string
+): Promise<TelegramSubscription[]> {
+  // ownership check via account
+  const account = await getTelegramAccount(accountId, userId);
+  if (!account) {
+    throw new Error("Account not found");
+  }
+  return await withPostgres(async client => {
+    const res = await client.query(
+      `SELECT * FROM telegram_subscriptions
+       WHERE telegram_account_id = $1
+       ORDER BY created_at DESC`,
+      [accountId]
+    );
+    return res.rows.map(row => ({
+      id: row.id,
+      telegram_account_id: row.telegram_account_id,
+      peer_id: String(row.peer_id),
+      peer_type: row.peer_type,
+      title: row.title,
+      enabled: row.enabled,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }));
+  });
+}
+
+export async function upsertSubscriptions(
+  accountId: string,
+  userId: string,
+  items: Array<{
+    peer_id: string;
+    peer_type: "user" | "chat" | "channel";
+    title: string;
+    enabled?: boolean;
+  }>
+): Promise<void> {
+  const account = await getTelegramAccount(accountId, userId);
+  if (!account) {
+    throw new Error("Account not found");
+  }
+  await withTransaction(async client => {
+    for (const it of items) {
+      await client.query(
+        `INSERT INTO telegram_subscriptions (id, telegram_account_id, peer_id, peer_type, title, enabled, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+         ON CONFLICT (telegram_account_id, peer_id)
+         DO UPDATE SET title = EXCLUDED.title, enabled = EXCLUDED.enabled, updated_at = NOW()`,
+        [
+          `sub_${accountId}_${it.peer_id}`,
+          accountId,
+          parseInt(it.peer_id, 10),
+          it.peer_type,
+          it.title,
+          typeof it.enabled === "boolean" ? it.enabled : true,
+        ]
+      );
+    }
+  });
+}

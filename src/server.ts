@@ -7,6 +7,7 @@ import { ingestRoutes } from "./api/ingest.js";
 import { chatRoutes } from "./api/chat.js";
 import { workspaceRoutes } from "./api/workspace.js";
 import { roleRoutes } from "./api/role.js";
+import { telegramUserRoutes } from "./api/telegram-user.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { initializeCollection } from "./core/milvus.js";
 
@@ -49,6 +50,7 @@ await app.register(workspaceRoutes, { prefix: "/api" });
 await app.register(roleRoutes, { prefix: "/api" });
 await app.register(ingestRoutes, { prefix: "/api" });
 await app.register(chatRoutes, { prefix: "/api" });
+await app.register(telegramUserRoutes, { prefix: "/api" });
 
 // Initialize Milvus collection on startup
 try {

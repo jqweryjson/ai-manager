@@ -15,6 +15,7 @@ import { RetrievalPanel } from "./ui/RetrievalPanel";
 import type { Message } from "./types";
 import { WorkspaceCombobox } from "@/widgets/WorkspaceCombobox";
 import type { AssistantRole } from "@/shared/api/roles";
+import "./styles.css";
 
 export const ChatPage = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -104,21 +105,11 @@ export const ChatPage = () => {
           {/* Основная область чата */}
           <Layout direction="column" className="chat-main">
             {/* Панель выбора роли */}
-            <Layout
-              className="chat-header"
-              style={{
-                gap: "var(--space-s)",
-                justifyContent: "space-between",
-              }}
-            >
-              <Layout
-                direction="column"
-                style={{ flex: 1, gap: "var(--space-xs)" }}
-              >
-                <WorkspaceCombobox mode="switcher" />
-                <RoleCombobox onOpenEditor={handleOpenRoleEditor} />
-              </Layout>
+
+            <Layout direction="column" style={{ gap: "var(--space-xs)" }}>
               <DocumentManagementPanel />
+              <WorkspaceCombobox mode="switcher" />
+              <RoleCombobox onOpenEditor={handleOpenRoleEditor} />
             </Layout>
 
             <div className="chat-messages">

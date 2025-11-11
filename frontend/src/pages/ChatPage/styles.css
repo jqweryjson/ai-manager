@@ -1,0 +1,43 @@
+/* ===== CHAT PAGE ===== */
+
+.chat-container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  flex-direction: row;
+}
+
+@media (max-width: 767px) {
+  .chat-container {
+    flex-direction: column;
+  }
+}
+
+.chat-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.chat-header {
+  padding: var(--space-m);
+  border-bottom: 1px solid var(--color-bg-border);
+  background: var(--color-bg-ghost);
+}
+
+@media (max-width: 767px) {
+  .chat-header {
+    padding: var(--space-s);
+    gap: var(--space-s);
+  }
+}
+
+.chat-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

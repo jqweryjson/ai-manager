@@ -6,4 +6,7 @@ export const queryKeys = {
     ["documents", workspaceId || "all"] as const,
   chat: ["chat"] as const,
   roles: () => ["roles"] as const,
+  telegramUser: {
+    status: ["telegram-user", "status"] as const,
+  },
 };
