@@ -1,13 +1,36 @@
 import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
 import { Api } from "telegram/tl";
-import crypto from "crypto";
+
+// Фильтруем TIMEOUT ошибки из GramJS update loop
+// Это нормальное поведение для long-polling, но не должно засорять консоль
+const originalConsoleError = console.error;
+console.error = (...args: any[]) => {
+  // Проверяем, это ли ошибка TIMEOUT из updates.js
+  const firstArg = args[0];
+  if (
+    firstArg instanceof Error &&
+    firstArg.message === "TIMEOUT" &&
+    firstArg.stack?.includes("telegram/client/updates.js")
+  ) {
+    // Игнорируем эту ошибку
+    return;
+  }
+  // Все остальные ошибки пропускаем к оригинальному console.error
+  originalConsoleError.apply(console, args);
+};
 
 type DialogSummary = {
-  peerId: string;
-  peerType: "user" | "chat" | "channel";
+  peer_id: string;
+  peer_type: "user" | "chat" | "channel";
   title: string;
-  unreadCount: number;
+  unread_count: number;
+};
+
+type GetDialogsResult = {
+  dialogs: DialogSummary[];
+  hasMore: boolean;
+  nextOffsetDate?: string; // ISO string для передачи через API
 };
 
 /**
@@ -24,9 +47,22 @@ export function createClient(
 ): TelegramClient {
   const session = new StringSession(sessionString || "");
 
-  return new TelegramClient(session, apiId, apiHash, {
+  const client = new TelegramClient(session, apiId, apiHash, {
     connectionRetries: 5,
+    // Отключаем автоматические обновления (update loop)
+    // т.к. нам не нужны real-time обновления для stateless API
+    useWSS: false,
+    timeout: 10, // 10 секунд таймаут для запросов
   });
+
+  // Полностью отключаем update loop для stateless операций
+  // Это предотвращает бесконечные TIMEOUT ошибки в консоли
+  (client as any).updates = {
+    isConnected: () => false,
+    _updateLoop: () => Promise.resolve(),
+  };
+
+  return client;
 }
 
 /**
@@ -222,67 +258,196 @@ export function restoreSession(
 }
 
 /**
- * Загружает список диалогов (личные, группы, каналы)
+ * Преобразует диалог GramJS в DialogSummary
+ * @param d - объект диалога с entity или сам entity
+ */
+function parseDialog(d: any): DialogSummary | null {
+  try {
+    // Если d уже entity (из SearchGlobal), используем его напрямую
+    const entity = d.entity || d;
+    const title: string =
+      d.title ?? entity?.title ?? entity?.firstName ?? "Unknown";
+    const unread_сount: number = d.unread_сount ?? 0;
+
+    let peer_type: "user" | "chat" | "channel" = "chat";
+    let peerIdStr = "";
+
+    const entityType =
+      entity?.className || entity?.constructor?.name || entity?._;
+
+    if (entityType === "User" || entity?._ === "User") {
+      peer_type = "user";
+      peerIdStr = String(entity.id);
+    } else if (entityType === "Channel" || entity?._ === "Channel") {
+      if (entity?.megagroup) {
+        peer_type = "chat"; // Супергруппа = чат
+      } else {
+        peer_type = "channel"; // Обычный канал
+      }
+      peerIdStr = String(entity.id);
+    } else if (entityType === "Chat" || entity?._ === "Chat") {
+      peer_type = "chat";
+      peerIdStr = String(entity.id);
+    } else if (typeof entity?.id !== "undefined") {
+      peerIdStr = String(entity.id);
+    }
+
+    if (peerIdStr) {
+      return {
+        peer_id: peerIdStr,
+        peer_type,
+        title,
+        unread_count: unread_сount,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Загружает список диалогов (личные, группы, каналы) с пагинацией
  * Возвращает упрощённое представление для UI.
  */
 export async function getDialogsSummary(
   client: TelegramClient,
-  limit: number = 100
-): Promise<DialogSummary[]> {
+  limit: number = 50,
+  offsetDate?: Date
+): Promise<GetDialogsResult> {
   try {
     if (!client.connected) {
       await client.connect();
     }
-    // Используем high-level API gramjs
-    const dialogs = await (client as any).getDialogs({ limit });
+
+    // GramJS ожидает offsetDate как число (Unix timestamp в секундах), а не Date
+    const offsetDateSeconds = offsetDate
+      ? Math.floor(offsetDate.getTime() / 1000)
+      : undefined;
+
+    const dialogs = await (client as any).getDialogs({
+      limit,
+      offsetDate: offsetDateSeconds,
+    });
+
     if (!Array.isArray(dialogs)) {
-      return [];
+      return { dialogs: [], hasMore: false };
     }
+
     const result: DialogSummary[] = [];
+    let lastDate: Date | undefined;
 
     for (const d of dialogs) {
-      try {
-        // d.entity содержит User/Chat/Channel
-        const entity = d.entity;
-        const title: string =
-          d.title ?? entity?.title ?? entity?.firstName ?? "Unknown";
-        const unreadCount: number = d.unreadCount ?? 0;
+      const parsed = parseDialog(d);
+      if (parsed) {
+        result.push(parsed);
+        // Сохраняем дату последнего сообщения для пагинации
+        if (d.date) {
+          // Преобразуем d.date в Date, если это необходимо
+          let dateObj: Date;
+          if (d.date instanceof Date) {
+            dateObj = d.date;
+          } else if (typeof d.date === "number") {
+            // Timestamp в секундах (Telegram использует Unix timestamp)
+            dateObj = new Date(d.date * 1000);
+          } else if (typeof d.date === "bigint") {
+            dateObj = new Date(Number(d.date) * 1000);
+          } else {
+            // Пробуем преобразовать через конструктор Date
+            dateObj = new Date(d.date as any);
+          }
 
-        let peerType: "user" | "chat" | "channel" = "chat";
-        let peerIdStr = "";
-
-        if (entity?._ === "User") {
-          peerType = "user";
-          peerIdStr = String(entity.id);
-        } else if (entity?._ === "Channel") {
-          peerType = "channel";
-          peerIdStr = String(entity.id);
-        } else if (entity?._ === "Chat") {
-          peerType = "chat";
-          peerIdStr = String(entity.id);
-        } else if (typeof entity?.id !== "undefined") {
-          // fallback
-          peerIdStr = String(entity.id);
+          if (!isNaN(dateObj.getTime()) && (!lastDate || dateObj < lastDate)) {
+            lastDate = dateObj;
+          }
         }
-
-        if (peerIdStr) {
-          result.push({
-            peerId: peerIdStr,
-            peerType,
-            title,
-            unreadCount,
-          });
-        }
-      } catch {
-        // пропускаем проблемный диалог
       }
     }
-    return result;
+
+    // Если получили меньше чем limit, значит больше нет
+    const hasMore = dialogs.length >= limit;
+
+    const response: GetDialogsResult = {
+      dialogs: result,
+      hasMore,
+    };
+    if (hasMore && lastDate) {
+      response.nextOffsetDate = lastDate.toISOString();
+    }
+    return response;
   } catch (error) {
     throw new Error(
       `Failed to get dialogs: ${error instanceof Error ? error.message : String(error)}`
     );
   } finally {
     await safeDisconnect(client);
+  }
+}
+
+/**
+ * Поиск контактов по имени
+ */
+export async function getUserContacts(
+  client: TelegramClient
+): Promise<DialogSummary[]> {
+  try {
+    if (!client.connected) {
+      await client.connect();
+    }
+
+    const result = await client.invoke(new Api.contacts.GetContacts({}));
+
+    if (!result || !("users" in result)) {
+      return [];
+    }
+
+    const dialogs: DialogSummary[] = [];
+
+    for (const user of result.users || []) {
+      // Безопасный доступ к свойствам пользователя
+      const firstName = (user as any).firstName || "";
+      const username = (user as any).username || "";
+      const title = firstName || username || "Unknown";
+
+      const parsed = parseDialog({
+        entity: user,
+        title,
+        unread_сount: 0,
+      });
+      if (parsed) {
+        dialogs.push(parsed);
+      }
+    }
+
+    return dialogs;
+  } catch (error) {
+    throw new Error(
+      `Failed to get contacts: ${error instanceof Error ? error.message : String(error)}`
+    );
+  } finally {
+    await safeDisconnect(client);
+  }
+}
+
+/**
+ * Поиск чатов/групп/каналов по названию (фильтрация из всех диалогов)
+ */
+export async function getUserDialogs(
+  client: TelegramClient,
+  limit: number = 1000
+): Promise<DialogSummary[]> {
+  try {
+    if (!client.connected) {
+      await client.connect();
+    }
+
+    // Получаем все диалоги с большим лимитом
+    const allDialogs = await getDialogsSummary(client, limit);
+
+    return allDialogs.dialogs;
+  } catch (error) {
+    throw new Error(
+      `Failed to get dialogs: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }

@@ -42,6 +42,7 @@ export const WorkspaceCombobox = ({
 
   return (
     <EntityCombobox
+      label="Рабочая область"
       mode={mode}
       value={value}
       onChange={onChange}
@@ -52,9 +53,7 @@ export const WorkspaceCombobox = ({
       createMutation={createMutation}
       updateMutation={wrappedUpdateMutation}
       deleteMutation={deleteMutation}
-      label="Рабочая область"
-      placeholder="Выберите workspace"
-      emptyPlaceholder="Добавьте рабочую область"
+      placeholder="Выберите workspace ▼"
       addButtonTitle="Добавить workspace"
       deleteConfirmMessage="Удалить этот workspace?"
       createPlaceholder="Название workspace"

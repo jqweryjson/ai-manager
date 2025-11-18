@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getStatus } from "@shared/api/telegramUser";
 import { queryKeys } from "@shared/query/queryKeys";
 
-type TelegramAccountStatus =
+export type TelegramAccountStatus =
   | "pending_code"
   | "pending_2fa"
   | "connected"
@@ -12,6 +12,7 @@ type TelegramAccountStatus =
 interface UseTelegramUserStatusResult {
   status: TelegramAccountStatus;
   accountId: string | null;
+  userPhone: string | null;
   requires2FA: boolean;
   isLoading: boolean;
   error: Error | null;
@@ -58,6 +59,7 @@ export function useTelegramUserStatus(): UseTelegramUserStatusResult {
   return {
     status,
     accountId,
+    userPhone: data?.accounts[0].phone || null,
     requires2FA,
     isLoading,
     error: error as Error | null,

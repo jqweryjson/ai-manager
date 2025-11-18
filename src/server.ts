@@ -7,7 +7,7 @@ import { ingestRoutes } from "./api/ingest.js";
 import { chatRoutes } from "./api/chat.js";
 import { workspaceRoutes } from "./api/workspace.js";
 import { roleRoutes } from "./api/role.js";
-import { telegramUserRoutes } from "./api/telegram-user.js";
+import { telegramUserRoutes } from "./api/telegram-user/index.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { initializeCollection } from "./core/milvus.js";
 

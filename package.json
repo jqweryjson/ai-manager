@@ -6,9 +6,12 @@
     "dev": "tsx watch src/server.ts",
     "dev:debug": "tsx watch --inspect src/server.ts",
     "dev:frontend": "cd frontend && npm run dev",
+    "dev:listener": "tsx watch src/workers/telegram-listener.ts",
     "build": "tsc",
     "build:frontend": "cd frontend && npm run build",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "start:listener": "node dist/workers/telegram-listener.js",
+    "sync:types": "cp src/api/contracts.ts frontend/src/shared/api/contracts.ts"
   },
   "keywords": [],
   "author": "",

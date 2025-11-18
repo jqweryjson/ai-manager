@@ -1,0 +1,18 @@
+/* ===== SETTINGS PAGE ===== */
+
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+  position: relative;
+  margin: -12px;
+}
+
+@media (max-width: 767px) {
+  .settings-page {
+    gap: var(--space-l);
+  }
+}

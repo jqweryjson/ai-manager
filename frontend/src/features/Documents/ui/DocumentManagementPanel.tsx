@@ -26,6 +26,9 @@ export const DocumentManagementPanel = ({
   return (
     <>
       <div>
+        <Text size="xs" weight="semibold" view="secondary">
+          База знаний
+        </Text>
         <Button
           size="xs"
           view="ghost"

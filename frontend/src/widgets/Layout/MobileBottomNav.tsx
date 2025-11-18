@@ -3,6 +3,7 @@ import { Button } from "@consta/uikit/Button";
 import { IconCommentFilled } from "@consta/icons/IconCommentFilled";
 import { IconDocFilled } from "@consta/icons/IconDocFilled";
 import { IconSettings } from "@consta/icons/IconSettings";
+import { IconAllDone } from "@consta/icons/IconAllDone";
 
 export const MobileBottomNav = () => {
   const navigate = useNavigate();
@@ -40,6 +41,16 @@ export const MobileBottomNav = () => {
           size="m"
           title="Интеграции"
           onClick={() => navigate("/app/integrations")}
+        />
+      </div>
+      <div className="mobile-bottom-nav__button">
+        <Button
+          onlyIcon
+          iconLeft={IconAllDone}
+          view={isActive("/app/settings") ? "primary" : "clear"}
+          size="m"
+          title="Настройки"
+          onClick={() => navigate("/app/settings")}
         />
       </div>
     </div>

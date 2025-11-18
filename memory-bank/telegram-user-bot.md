@@ -37,6 +37,10 @@
     - [x] Функция `getSessionString(client)` → сериализация сессии для хранения
     - [x] Функция `restoreSession(sessionString, apiId, apiHash)` → восстановление клиента
     - [x] Безопасное управление соединением: `await client.connect()` перед `invoke`, гарантированное `safeDisconnect()` в `finally`
+    - [x] Функция `getDialogsSummary(client, limit, offsetDate?)` → получение диалогов с пагинацией
+    - [x] Функция `getUserContacts(client)` → получение всех контактов пользователя
+    - [x] Функция `getUserDialogs(client, limit)` → получение всех диалогов для локального поиска
+    - [x] Отключение `_updateLoop` GramJS (useWSS: false, timeout: 10) для предотвращения TIMEOUT ошибок
   - [x] Хранение `api_id`, `api_hash`, `session` — только зашифрованно (AES‑GCM)
   - [x] Изоляция по `user_id`, ACL, логи
   - [ ] Фоновые задачи для автоответов
@@ -77,14 +81,22 @@
     - [x] Проверка авторизации и ownership
     - [x] Удаление аккаунта и подписок из БД (CASCADE)
     - [x] Возврат `{ success: true }`
-  - [ ] GET `/api/tg-user/dialogs`
-    - [ ] Проверка авторизации
-    - [ ] Параметр `account_id` (опционально, если несколько аккаунтов)
-    - [ ] Получение зашифрованной сессии из БД, расшифровка
-    - [ ] Восстановление TelegramClient
-    - [ ] Вызов `client.getDialogs()`
-    - [ ] Форматирование: `{ peer_id, type, title, unread_count }[]`
-    - [ ] Возврат списка диалогов
+  - [x] GET `/api/tg-user/dialogs`
+    - [x] Проверка авторизации
+    - [x] Параметр `account_id` (опционально, если несколько аккаунтов)
+    - [x] Получение зашифрованной сессии из БД, расшифровка
+    - [x] Восстановление TelegramClient
+    - [x] Вызов `client.getDialogs()` с пагинацией (limit, offsetDate)
+    - [x] Форматирование: `{ peer_id, peer_type, title, unread_count }[]`
+    - [x] Возврат списка диалогов с `has_more` и `next_offset_date`
+    - [x] Улучшенная детекция peer_type (user/chat/channel с учетом megagroup)
+    - [x] Обработка различных форматов дат от GramJS (Date, number, bigint)
+  - [x] GET `/api/tg-user/contacts`
+    - [x] Получение всех контактов пользователя через `Api.contacts.getContacts`
+    - [x] Форматирование в единый формат DialogItem
+  - [x] GET `/api/tg-user/chats`
+    - [x] Получение всех диалогов пользователя (для локального поиска)
+    - [x] Форматирование в единый формат DialogItem
   - [ ] POST `/api/tg-user/subscriptions`
     - [ ] Валидация: `{ account_id, items: [{ peer_id, type, title, enabled }] }`
     - [ ] Проверка авторизации и ownership аккаунта
@@ -114,21 +126,32 @@
     - [x] Создана структура feature `TelegramIntegration` (FSD)
     - [x] Компонент `TelegramIntegrationCard` с поддержкой статусов (preparing/connected/not_connected)
     - [x] Переиспользуемый компонент `ExpandableCard` для раскрытия/сворачивания
+    - [x] Переиспользуемый компонент `IntegrationCardHeader` для заголовка карточек
     - [x] Страница `/app/integrations` с массивом интеграций (масштабируемая структура)
     - [x] Логика раскрытия: клик по карточке → разворачивается на всю высоту, остальные скрываются
     - [x] Кнопка закрытия для сворачивания карточки
     - [x] Кнопка "Получить API ключи" (открывает my.telegram.org/auth)
     - [x] Форма ввода api_id и api_hash
-    - [x] Кнопка "Подключить" с валидацией полей
+    - [x] Полный мастер подключения: ключи → телефон → код → 2FA (встроен в карточку)
+    - [x] Хук `useTelegramUserStatus` для получения статуса независимо от состояния карточки
+    - [x] Компонент `TelegramDialogsList` для отображения списка диалогов
+      - [x] Поиск по названию чата (debounce 3 секунды)
+      - [x] Фильтрация по типам (user/chat/channel) через чекбоксы
+      - [x] Дедупликация диалогов по peer_id (контакты + чаты)
+      - [x] Рефакторинг на подкомпоненты: `DialogsSearchBar`, `DialogsList`, `DialogItem`
+      - [x] Хуки: `useDebouncedSearch`, `useDialogsFilter`
+      - [x] Константы вынесены в `constants.ts`
   - [x] API клиент: `frontend/src/shared/api/telegram-user.ts`
     - [x] `startConnection(apiId, apiHash, phone)` → POST `/api/tg-user/start` (возвращает account_id)
     - [x] `verifyCode(accountId, code)` → POST `/api/tg-user/verify`
     - [x] `verify2FA(accountId, password)` → POST `/api/tg-user/2fa`
     - [x] `getStatus()` → GET `/api/tg-user/status`
     - [x] `disconnect(accountId)` → POST `/api/tg-user/disconnect`
-    - [ ] `getDialogs(accountId?)` → GET `/api/tg-user/dialogs`
+    - [x] `getDialogs(accountId, limit?, offsetDate?)` → GET `/api/tg-user/dialogs` (с пагинацией)
+    - [x] `getUserContacts(accountId?)` → GET `/api/tg-user/contacts`
+    - [x] `getUserDialogs(accountId?, limit?)` → GET `/api/tg-user/chats`
     - [ ] `saveSubscriptions(accountId, items)` → POST `/api/tg-user/subscriptions`
-    - [ ] `sendMessage(accountId, peerId, message)` → POST `/api/tg-user/send` (опционально, для будущего использования)
+    - [ ] `sendMessage(accountId, peer_id, message)` → POST `/api/tg-user/send` (опционально, для будущего использования)
   - [ ] Мастер подключения (Stepper): Шаг 1 → Шаг 2 → Шаг 3
     - [ ] Шаг 1: Ввод API ключей (уже есть форма)
       - [ ] Валидация api_id (число)
@@ -196,11 +219,82 @@
     - [x] Шифрование и сохранение session в БД на каждом шаге
     - [x] Эндпоинт GET `/api/tg-user/status`
     - [x] Фронтенд: API клиент + формы в карточке (ключи/телефон/код/2FA)
-  - [ ] Итерация 3: Диалоги и подписки
-    - [ ] Эндпоинт GET `/api/tg-user/dialogs`
-    - [ ] Эндпоинт POST `/api/tg-user/subscriptions`
-    - [ ] Фронтенд: шаг 3 мастера (выбор чатов)
-    - [ ] Фронтенд: UI списка подписок
+    - [x] Рефакторинг backend API: разделение на handlers (auth.ts, account.ts, dialogs.ts, subscriptions.ts)
+  - [x] Итерация 3: Диалоги и подписки (частично)
+    - [x] Эндпоинт GET `/api/tg-user/dialogs` (с пагинацией)
+    - [x] Эндпоинт GET `/api/tg-user/contacts` (все контакты пользователя)
+    - [x] Эндпоинт GET `/api/tg-user/chats` (все диалоги для локального поиска)
+    - [x] Фронтенд: компонент `TelegramDialogsList` с поиском и фильтрацией
+    - [x] Фронтенд: отображение списка диалогов в карточке при статусе "connected"
+    - [x] Фронтенд: рефакторинг компонентов (разделение на подкомпоненты и хуки)
+    - [x] Виртуализация списка диалогов (@tanstack/react-virtual)
+  - [ ] Итерация 3.5: Управление автоответами (workspace + role + enabled)
+    - [ ] **Терминология**: Подписка (subscription) = конфигурация автоответов для чата (peer_id + workspace_id + role_id + enabled)
+    - [x] **Шаг 1: БД и Backend API**
+      - [x] Миграция: добавить `workspace_id`, `role_id` в `telegram_subscriptions`
+        - [x] `workspace_id VARCHAR(50) REFERENCES workspaces(id) ON DELETE CASCADE`
+        - [x] `role_id VARCHAR(50) REFERENCES roles(id) ON DELETE CASCADE`
+        - [x] Индексы для новых полей
+        - [x] **Важно**: workspace_id и role_id могут быть NULL (пока не настроены)
+      - [x] Обновить `telegram-account-postgres.ts`:
+        - [x] Добавить поля в тип `TelegramSubscription`
+        - [x] Обновить `listSubscriptions()` — возвращать workspace_id, role_id
+        - [x] Обновить `upsertSubscriptions()` — сохранять workspace_id, role_id
+      - [x] Создать эндпоинт GET `/api/tg-user/subscriptions?account_id=xxx`
+        - [x] Возвращает список подписок с конфигурацией
+        - [x] Формат: `[{ peer_id, peer_type, title, enabled, workspace_id, role_id }]`
+      - [x] Обновить эндпоинт POST `/api/tg-user/subscriptions`
+        - [x] Принимать workspace_id, role_id для каждой подписки
+        - [x] Валидация через Zod схему
+        - [x] **Бизнес-правило**: если enabled = true, то workspace_id и role_id обязательны
+    - [x] **Шаг 2: Frontend — Типы и API клиент**
+      - [x] Создать тип `SubscriptionConfig`
+      - [x] API клиент `frontend/src/shared/api/telegramUser.ts`:
+        - [x] `getSubscriptions(accountId)` → GET `/api/tg-user/subscriptions`
+        - [x] `saveSubscriptions(accountId, items)` — принимать workspace_id, role_id
+      - [x] Добавить query key для subscriptions
+    - [x] **Шаг 3: Frontend — Хуки**
+      - [x] Хук `useTelegramSubscriptions(accountId)`:
+        - [x] React Query для загрузки подписок
+        - [x] Кеширование 30 секунд
+        - [x] Query key: `['telegram-user', 'subscriptions', accountId]`
+      - [x] Хук `useSubscriptionConfig(peer_id, accountId)`:
+        - [x] Управление локальным состоянием (workspace, role, enabled)
+        - [x] Функция `saveConfig()` — вызов API
+        - [x] Инвалидация кеша через React Query
+    - [x] **Шаг 4: Frontend — Компоненты**
+      - [x] Компонент `SubscriptionStatusBadge`:
+        - [x] Отображает: "Включено" (зеленый), "Выключено" (серый), "Не настроено" (желтый), "Сохранение..." (синий)
+      - [x] Компонент `SubscriptionConfigPanel`:
+        - [x] Селектор workspace (mode="selector", size="s")
+        - [x] Селектор role (mode="selector", size="s")
+        - [x] Переключатель enabled/disabled (Switch)
+        - [x] **Логика**: Switch disabled, если workspace или role не выбраны
+        - [x] Бейджик статуса
+        - [x] Адаптивный layout (desktop: row, mobile: column)
+      - [x] Обновить `DialogItem`:
+        - [x] Интеграция `SubscriptionConfigPanel` в одну строку с именем чата
+        - [x] Flex layout с `justify-content: space-between`
+        - [x] Убрано раскрытие (все в одной строке)
+      - [x] Обновить `TelegramDialogsList`:
+        - [x] Загружать подписки через `useTelegramSubscriptions`
+        - [x] Передавать конфигурацию в `DialogItem` через `DialogsList`
+      - [x] Стили:
+        - [x] `.subscription-config-panel` с inline layout (row)
+        - [x] Адаптивные стили для мобильной версии
+    - [ ] **Шаг 5: Интеграция и тестирование**
+      - [ ] Функциональное тестирование:
+        - [ ] Выбор workspace и role
+        - [ ] Включение/отключение подписки
+        - [ ] Сохранение конфигурации на backend
+      - [ ] Адаптивность:
+        - [ ] Desktop (1920px, 1366px)
+        - [ ] Tablet (768px)
+        - [ ] Mobile (375px, 320px)
+      - [ ] UX полировка:
+        - [ ] Loading состояния
+        - [ ] Error handling
+        - [ ] Оптимистичные обновления
   - [ ] Итерация 4: Отправка сообщений
     - [ ] Эндпоинт POST `/api/tg-user/send`
     - [ ] Обработка FloodWait (сохранение статуса)
@@ -209,11 +303,66 @@
     - [ ] Эндпоинт POST `/api/tg-user/disconnect`
     - [ ] Фронтенд: кнопка "Отключить"
     - [ ] Управление несколькими аккаунтами (если нужно)
-  - [ ] Итерация 6: Автоответы (будущее)
-    - [ ] Фоновые воркеры для мониторинга новых сообщений
+  - [ ] Итерация 6: Telegram Listener (прослушивание сообщений)
+    - [x] **Шаг 1: Создание Telegram Listener Worker**
+      - [x] Создать `src/workers/telegram-listener.ts`
+      - [x] Класс `TelegramListenerManager`:
+        - [x] `initialize()` — загрузка всех connected аккаунтов с enabled подписками
+        - [x] `startListening(accountId, userId)` — создание TelegramClient и подписка на NewMessage
+        - [x] `stopListening(accountId)` — остановка слушателя
+        - [x] `handleNewMessage()` — обработка нового сообщения (вывод в консоль)
+        - [x] `shutdown()` — graceful shutdown всех клиентов
+      - [x] Конфигурация TelegramClient:
+        - [x] `connectionRetries: Infinity` — бесконечные попытки переподключения
+        - [x] `autoReconnect: true` — автоматическое переподключение
+        - [x] `retryDelay: 1000` — задержка 1 сек между попытками
+        - [x] `useWSS: false, timeout: 10` — отключение \_updateLoop
+      - [x] Обработка ошибок:
+        - [x] try-catch в каждом handler (не падаем при ошибке)
+        - [x] Повторная попытка запуска через 30 сек при сбое
+        - [x] uncaughtException/unhandledRejection handlers
+      - [x] Graceful shutdown:
+        - [x] SIGTERM/SIGINT handlers
+        - [x] Закрытие всех клиентов
+        - [x] Закрытие пула БД
+      - [x] Логирование:
+        - [x] Вывод новых сообщений в консоль (чат, отправитель, текст, workspace, role)
+        - [x] Логирование старта/остановки слушателей
+        - [x] Логирование ошибок
+    - [x] **Шаг 2: Docker интеграция**
+      - [x] Создать `Dockerfile` для backend
+      - [x] Обновить `docker-compose.yml`:
+        - [x] Добавить сервис `telegram-listener`
+        - [x] `restart: unless-stopped` — автоматический перезапуск при падении
+        - [x] `depends_on: postgres` — зависимость от БД
+        - [x] Logging configuration (json-file, 10MB, 3 файла)
+      - [x] Создать скрипт `/scripts/start-telegram-listener.sh` для локального запуска
+    - [x] **Шаг 3: NPM скрипты**
+      - [x] `npm run dev:listener` — запуск в режиме разработки (tsx watch)
+      - [x] `npm run start:listener` — запуск в production (node dist/...)
+    - [ ] **Шаг 4: Тестирование Listener**
+      - [ ] Запуск локально: `npm run dev:listener`
+      - [ ] Проверка инициализации (загрузка аккаунтов из БД)
+      - [ ] Отправка сообщений в подключенные чаты
+      - [ ] Проверка вывода в консоль (чат, текст, workspace, role)
+      - [ ] Проверка фильтрации (игнорирование неподключенных чатов)
+      - [ ] Проверка reconnect при сетевых ошибках
+      - [ ] Проверка graceful shutdown (Ctrl+C)
+    - [ ] **Шаг 5: Docker тестирование**
+      - [ ] Сборка образа: `docker-compose build telegram-listener`
+      - [ ] Запуск: `docker-compose up telegram-listener`
+      - [ ] Проверка логов: `docker-compose logs -f telegram-listener`
+      - [ ] Проверка автоперезапуска: `docker kill telegram-listener` → должен перезапуститься
+      - [ ] Проверка работы после перезагрузки сервера
+    - [ ] **Шаг 6: API для управления слушателями (опционально)**
+      - [ ] GET `/api/tg-user/listener/status` — статус всех слушателей
+      - [ ] POST `/api/tg-user/listener/restart?account_id=xxx` — перезапуск для аккаунта
+  - [ ] Итерация 7: Автоответы через LLM
     - [ ] Интеграция с chat API для генерации ответов
+    - [ ] Отправка ответов через `client.sendMessage()`
     - [ ] Троттлинг и rate limiting
     - [ ] Мониторинг и алерты
+    - [ ] Логирование всех автоответов
 
 - [ ] 9. Definition of Done
   - [ ] Аккаунт подключается; session зашифрована и хранится безопасно

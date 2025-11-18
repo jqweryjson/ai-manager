@@ -34,7 +34,7 @@ export const IntegrationsPage = () => {
   return (
     <Layout direction="column" className="integrations-page">
       <Layout direction="column" style={{ gap: "var(--space-2xs)" }}>
-        <Text size="2xl" weight="bold" view="primary">
+        <Text size="2xl" weight="bold" view="brand">
           Интеграции
         </Text>
         <Text size="s" view="secondary">
