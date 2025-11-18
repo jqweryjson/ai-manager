@@ -85,7 +85,10 @@ export const EditableField: React.FC<EditableFieldProps> = ({
         onMouseDown={(e: React.MouseEvent<HTMLButtonElement>) =>
           e.stopPropagation()
         }
-        onClick={onCancel}
+        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+          e.stopPropagation();
+          onCancel();
+        }}
         disabled={isLoading}
       />
     </Layout>

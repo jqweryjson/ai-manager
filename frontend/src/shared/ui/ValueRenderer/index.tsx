@@ -15,7 +15,6 @@ interface ValueRendererProps<T> {
   isLoading: boolean;
   getDisplayValue: (value: T) => string;
   placeholder?: string;
-  emptyPlaceholder?: string;
   size?: "xs" | "s";
   mode?: "switcher" | "selector";
   className?: string;
@@ -30,8 +29,7 @@ export function ValueRenderer<T>({
   onCancelEdit,
   isLoading,
   getDisplayValue,
-  placeholder,
-  emptyPlaceholder = "Выберите значение",
+  placeholder = "Выберите значение",
   size = "s",
   mode = "switcher",
   className,
@@ -40,7 +38,7 @@ export function ValueRenderer<T>({
   if (mode === "selector") {
     return (
       <Text view="secondary" size={size}>
-        {value ? getDisplayValue(value) : emptyPlaceholder}
+        {value ? getDisplayValue(value) : placeholder}
       </Text>
     );
   }
@@ -74,8 +72,8 @@ export function ValueRenderer<T>({
       }}
     >
       {!value ? (
-        <Text view="secondary" size={size}>
-          {emptyPlaceholder}
+        <Text view="ghost" size={size}>
+          {placeholder}
         </Text>
       ) : (
         <>

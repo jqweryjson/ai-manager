@@ -26,7 +26,7 @@ export const IntegrationCardHeader: React.FC<IntegrationCardHeaderProps> = ({
         <div className="integration-card-header__icon">{icon}</div>
       ) : null}
       <Layout direction="column" style={{ gap: "var(--space-3xs)" }}>
-        <Text size="l" weight="semibold" view="primary">
+        <Text size="l" weight="semibold" view="brand">
           {title}
         </Text>
         {subtitle ? (

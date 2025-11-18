@@ -10,6 +10,8 @@ const groq = new Groq({
   httpAgent: agent,
 });
 
+const MAX_COMPLETION_TOKENS = Number(process.env.GROQ_MAX_TOKENS) || 8192;
+
 export interface GroqResponse {
   answer: string;
   usage?: {
@@ -28,7 +30,7 @@ export async function callGroqLLM(
   question: string,
   context: string,
   customSystemPrompt?: string,
-  model: string = process.env.GROQ_MODEL || "llama-3.1-8b-instant",
+  model: string = process.env.GROQ_MODEL || "",
   options?: { includeThink?: boolean }
 ): Promise<GroqResponse> {
   let systemPrompt: string;
@@ -64,7 +66,7 @@ ${context}`;
       ],
       model,
       temperature: 0.1,
-      max_tokens: 1000,
+      max_tokens: MAX_COMPLETION_TOKENS,
       stream: false,
     });
 

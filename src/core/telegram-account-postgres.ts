@@ -230,6 +230,8 @@ export interface TelegramSubscription {
   peer_type: "user" | "chat" | "channel";
   title: string;
   enabled: boolean;
+  workspace_id: string | null;
+  role_id: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -257,6 +259,8 @@ export async function listSubscriptions(
       peer_type: row.peer_type,
       title: row.title,
       enabled: row.enabled,
+      workspace_id: row.workspace_id || null,
+      role_id: row.role_id || null,
       created_at: row.created_at,
       updated_at: row.updated_at,
     }));
@@ -271,6 +275,8 @@ export async function upsertSubscriptions(
     peer_type: "user" | "chat" | "channel";
     title: string;
     enabled?: boolean;
+    workspace_id?: string | null;
+    role_id?: string | null;
   }>
 ): Promise<void> {
   const account = await getTelegramAccount(accountId, userId);
@@ -280,17 +286,19 @@ export async function upsertSubscriptions(
   await withTransaction(async client => {
     for (const it of items) {
       await client.query(
-        `INSERT INTO telegram_subscriptions (id, telegram_account_id, peer_id, peer_type, title, enabled, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        `INSERT INTO telegram_subscriptions (id, telegram_account_id, peer_id, peer_type, title, enabled, workspace_id, role_id, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
          ON CONFLICT (telegram_account_id, peer_id)
-         DO UPDATE SET title = EXCLUDED.title, enabled = EXCLUDED.enabled, updated_at = NOW()`,
+         DO UPDATE SET title = EXCLUDED.title, enabled = EXCLUDED.enabled, workspace_id = EXCLUDED.workspace_id, role_id = EXCLUDED.role_id, updated_at = NOW()`,
         [
           `sub_${accountId}_${it.peer_id}`,
           accountId,
           parseInt(it.peer_id, 10),
           it.peer_type,
           it.title,
-          typeof it.enabled === "boolean" ? it.enabled : true,
+          typeof it.enabled === "boolean" ? it.enabled : false,
+          it.workspace_id || null,
+          it.role_id || null,
         ]
       );
     }

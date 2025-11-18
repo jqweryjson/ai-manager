@@ -1,25 +1,66 @@
-import { Pool, PoolClient } from "pg";
+import { Pool, PoolClient, PoolConfig } from "pg";
 
 let pool: Pool | null = null;
 
 export function getPostgresPool(): Pool {
-  if (!pool) {
-    pool = new Pool({
-      host: process.env.POSTGRES_HOST || "localhost",
-      port: parseInt(process.env.POSTGRES_PORT || "8005"),
-      database: process.env.POSTGRES_DB || "ai_manager",
-      user: process.env.POSTGRES_USER || "postgres",
-      password: process.env.POSTGRES_PASSWORD || "postgres123",
-      max: 20, // максимальное количество соединений в пуле
-      idleTimeoutMillis: 30000, // закрыть соединения после 30 секунд неактивности
-      connectionTimeoutMillis: 2000, // таймаут подключения 2 секунды
-    });
+  if (pool) {
+    return pool;
+  }
 
-    // Обработка ошибок пула
-    pool.on("error", err => {
-      console.error("❌ Unexpected error on idle PostgreSQL client:", err);
+  const commonConfig = {
+    max: 20,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 2_000,
+  };
+
+  const connectionString = process.env.DATABASE_URL;
+
+  if (connectionString) {
+    pool = new Pool({
+      connectionString,
+      ...commonConfig,
+    } satisfies PoolConfig);
+  } else {
+    const host = process.env.POSTGRES_HOST;
+    const portRaw = process.env.POSTGRES_PORT;
+    const database = process.env.POSTGRES_DB;
+    const user = process.env.POSTGRES_USER;
+    const password = process.env.POSTGRES_PASSWORD;
+
+    if (!host) {
+      throw new Error("POSTGRES_HOST is not set");
+    }
+    if (!portRaw) {
+      throw new Error("POSTGRES_PORT is not set");
+    }
+    if (!database) {
+      throw new Error("POSTGRES_DB is not set");
+    }
+    if (!user) {
+      throw new Error("POSTGRES_USER is not set");
+    }
+    if (!password) {
+      throw new Error("POSTGRES_PASSWORD is not set");
+    }
+
+    const port = Number(portRaw);
+    if (Number.isNaN(port)) {
+      throw new Error(`POSTGRES_PORT must be a number, got "${portRaw}"`);
+    }
+
+    pool = new Pool({
+      host,
+      port,
+      database,
+      user,
+      password,
+      ...commonConfig,
     });
   }
+
+  pool.on("error", err => {
+    console.error("❌ Unexpected error on idle PostgreSQL client:", err);
+  });
 
   return pool;
 }

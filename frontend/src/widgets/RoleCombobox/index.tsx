@@ -16,14 +16,12 @@ interface RoleComboboxProps {
   mode?: "switcher" | "selector";
   value?: AssistantRole | null;
   onChange?: (role: AssistantRole | null) => void;
-  onOpenEditor?: (role: AssistantRole) => void;
 }
 
 export const RoleCombobox = ({
   mode = "switcher",
   value,
   onChange,
-  onOpenEditor,
 }: RoleComboboxProps) => {
   const { currentRole, setCurrentRole, roles, isLoading } = useRole();
   const createMutation = useCreateRoleMutation();
@@ -76,17 +74,15 @@ export const RoleCombobox = ({
   // Рендер дополнительного поля промпта
   const renderPromptField = ({
     selectedItem,
-    isAdding,
     onUpdate,
   }: ExtraFieldsHandlers<AssistantRole>) => {
-    if (!selectedItem && !isAdding) return null;
+    if (!selectedItem) return null;
 
     return (
       <RolePromptField
         role={selectedItem}
         onUpdate={onUpdate}
         isCompact={true}
-        onExpand={selectedItem ? () => onOpenEditor?.(selectedItem) : undefined}
         tempPrompt={tempPrompt}
         onTempPromptChange={setTempPrompt}
       />
@@ -95,6 +91,7 @@ export const RoleCombobox = ({
 
   return (
     <EntityCombobox<AssistantRole>
+      label="Роль ассистента"
       mode={mode}
       value={value}
       onChange={onChange}
@@ -105,11 +102,10 @@ export const RoleCombobox = ({
       createMutation={wrappedCreateMutation}
       updateMutation={wrappedUpdateMutation}
       deleteMutation={deleteMutation}
-      placeholder="Выберите роль ассистента"
-      emptyPlaceholder="Добавьте роль"
+      placeholder="Выберите роль ассистента ▼"
+      createPlaceholder="Название роли"
       addButtonTitle="Добавить роль"
       deleteConfirmMessage="Удалить эту роль?"
-      createPlaceholder="Название роли"
       prepareCreateData={name => name}
       onAfterCreate={handleAfterCreate}
       renderExtraFields={renderPromptField}

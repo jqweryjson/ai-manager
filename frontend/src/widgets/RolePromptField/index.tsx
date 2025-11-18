@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@consta/uikit/Button";
 import { TextField } from "@consta/uikit/TextField";
 import { Text } from "@consta/uikit/Text";
-import { IconExpand } from "@consta/icons/IconExpand";
+
 import { debounce } from "lodash";
 import {
   useUpdateRoleMutation,
@@ -10,12 +10,13 @@ import {
 } from "@/shared/hooks/useRoles";
 import type { AssistantRole } from "@/shared/api/roles";
 import { Layout } from "@consta/uikit/Layout";
+import "./style.css";
 
 interface RolePromptFieldProps {
   role: AssistantRole | null;
   onUpdate: (role: AssistantRole) => void;
   isCompact?: boolean;
-  onExpand?: () => void;
+
   tempPrompt?: string;
   onTempPromptChange?: (prompt: string) => void;
 }
@@ -24,13 +25,13 @@ export const RolePromptField = ({
   role,
   onUpdate,
   isCompact = true,
-  onExpand,
   tempPrompt = "",
   onTempPromptChange,
 }: RolePromptFieldProps) => {
   const updateMutation = useUpdateRoleMutation();
   const generatePromptMutation = useGeneratePromptMutation();
 
+  // При создании новой роли TextArea видна сразу
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [isSavingPrompt, setIsSavingPrompt] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -111,12 +112,14 @@ export const RolePromptField = ({
 
   const currentPrompt = role?.prompt || tempPrompt || "";
 
+  // TextArea видна - показываем полный интерфейс
   return (
-    <div className="role-prompt-field" style={{ width: "100%" }}>
+    <div className="role-prompt-field">
       <Layout
         style={{
           alignItems: "center",
           gap: "var(--space-xs)",
+          marginTop: "var(--space-xs)",
           marginBottom: isCompact ? "var(--space-xs)" : "var(--space-m)",
         }}
       >
@@ -150,17 +153,6 @@ export const RolePromptField = ({
             onlyIcon
             iconLeft={() => "✨"}
           />
-
-          {onExpand && (
-            <Button
-              size="xs"
-              view="ghost"
-              onClick={onExpand}
-              title="Развернуть редактор"
-              onlyIcon
-              iconLeft={IconExpand}
-            />
-          )}
         </Layout>
       </Layout>
 

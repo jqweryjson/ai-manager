@@ -168,6 +168,7 @@ export function Select<T>(props: SelectProps<T>) {
         <div
           ref={triggerRef as React.RefObject<HTMLDivElement>}
           className={className}
+          style={{ width: "100%" }}
           aria-haspopup="listbox"
           aria-expanded={open}
           onClick={() => !disabled && setOpen(o => !o)}

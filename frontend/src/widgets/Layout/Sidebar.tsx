@@ -3,6 +3,7 @@ import { Layout } from "@consta/uikit/Layout";
 import { Button } from "@consta/uikit/Button";
 import { IconCommentStroked } from "@consta/icons/IconCommentStroked";
 import { IconSettings } from "@consta/icons/IconSettings";
+import { IconShare } from "@consta/icons/IconShare";
 
 export const Sidebar = () => {
   const navigate = useNavigate();
@@ -17,10 +18,17 @@ export const Sidebar = () => {
         view="ghost"
       />
       <Button
-        iconLeft={IconSettings}
+        iconLeft={IconShare}
         size="m"
         label="Интеграции"
         onClick={() => navigate("/app/integrations")}
+        view="ghost"
+      />
+      <Button
+        iconLeft={IconSettings}
+        size="m"
+        label="Настройки Ассистента"
+        onClick={() => navigate("/app/settings")}
         view="ghost"
       />
     </Layout>

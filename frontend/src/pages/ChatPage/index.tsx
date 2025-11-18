@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Layout } from "@consta/uikit/Layout";
 import { Text } from "@consta/uikit/Text";
-import { DocumentManagementPanel } from "@/features/Documents";
-import { RoleCombobox } from "@/widgets/RoleCombobox";
+import { Button } from "@consta/uikit/Button";
+import { IconSettings } from "@consta/icons/IconSettings";
 import { RolePromptEditor } from "@/widgets/RolePromptEditor";
+import { AssistantWidget } from "@/widgets/AssistantWidget";
 import { type ChatRetrievalResponse } from "@/shared/api/chat";
 import { useChatMutation } from "@/shared/hooks/useChat";
 import { useWorkspace } from "@/shared/hooks/useWorkspace";
@@ -13,7 +14,6 @@ import { Messages } from "./ui/Messages";
 import { InputBar } from "./ui/InputBar";
 import { RetrievalPanel } from "./ui/RetrievalPanel";
 import type { Message } from "./types";
-import { WorkspaceCombobox } from "@/widgets/WorkspaceCombobox";
 import type { AssistantRole } from "@/shared/api/roles";
 import "./styles.css";
 
@@ -21,6 +21,7 @@ export const ChatPage = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [editingRole, setEditingRole] = useState<AssistantRole | null>(null);
+  const [isAssistantWidgetOpen, setIsAssistantWidgetOpen] = useState(false);
   const [lastRetrieval, setLastRetrieval] =
     useState<ChatRetrievalResponse | null>(null);
   const { currentWorkspace } = useWorkspace();
@@ -70,10 +71,6 @@ export const ChatPage = () => {
   };
 
   // Обработчики для редактора роли
-  const handleOpenRoleEditor = (role: AssistantRole) => {
-    setEditingRole(role);
-  };
-
   const handleCloseRoleEditor = () => {
     setEditingRole(null);
   };
@@ -104,13 +101,16 @@ export const ChatPage = () => {
         <>
           {/* Основная область чата */}
           <Layout direction="column" className="chat-main">
-            {/* Панель выбора роли */}
-
-            <Layout direction="column" style={{ gap: "var(--space-xs)" }}>
-              <DocumentManagementPanel />
-              <WorkspaceCombobox mode="switcher" />
-              <RoleCombobox onOpenEditor={handleOpenRoleEditor} />
-            </Layout>
+            {/* Кнопка настроек */}
+            <div className="chat-header">
+              <Button
+                size="s"
+                view="ghost"
+                iconLeft={IconSettings}
+                label="Настройки Ассистента"
+                onClick={() => setIsAssistantWidgetOpen(true)}
+              />
+            </div>
 
             <div className="chat-messages">
               <Messages messages={messages} />
@@ -134,6 +134,17 @@ export const ChatPage = () => {
           </Layout>
 
           <RetrievalPanel data={lastRetrieval} />
+
+          {/* Виджет настроек */}
+          {isAssistantWidgetOpen && (
+            <AssistantWidget
+              mode="overlay"
+              isOpen={isAssistantWidgetOpen}
+              onClose={() => setIsAssistantWidgetOpen(false)}
+              containerSelector=".chat-container"
+              showDocuments={true}
+            />
+          )}
         </>
       )}
     </div>

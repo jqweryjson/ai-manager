@@ -8,8 +8,10 @@ import { EntityItem } from "./EntityItem";
 import { useEntityCRUD } from "./useEntityCRUD";
 import { useEntitySelection } from "./useEntitySelection";
 import type { BaseEntity, EntityComboboxProps } from "./types";
+import { Text } from "@consta/uikit/Text";
 
 export function EntityCombobox<T extends BaseEntity>({
+  label,
   mode = "switcher",
   value: externalValue,
   onChange: externalOnChange,
@@ -20,11 +22,12 @@ export function EntityCombobox<T extends BaseEntity>({
   createMutation,
   updateMutation,
   deleteMutation,
+
   placeholder = "Выберите элемент",
-  emptyPlaceholder = "Добавьте элемент",
+  createPlaceholder = "Название",
+
   addButtonTitle = "Добавить",
   deleteConfirmMessage,
-  createPlaceholder = "Название",
   renderItem: customRenderItem,
   renderExtraFields,
   prepareCreateData,
@@ -77,7 +80,7 @@ export function EntityCombobox<T extends BaseEntity>({
         onCancelEdit={cancelEdit}
         isLoading={updateMutation.isPending}
         getDisplayValue={item => item.name}
-        emptyPlaceholder={emptyPlaceholder}
+        placeholder={placeholder}
         size="xs"
       />
     );
@@ -120,7 +123,10 @@ export function EntityCombobox<T extends BaseEntity>({
   }
 
   return (
-    <Layout direction="column" style={{ gap: "var(--space-xs)" }}>
+    <div>
+      <Text size="xs" weight="semibold" view="secondary">
+        {label}
+      </Text>
       <Layout
         direction="row"
         style={{ gap: "var(--space-2xs)", alignItems: "center", width: "100%" }}
@@ -157,7 +163,7 @@ export function EntityCombobox<T extends BaseEntity>({
           isAdding,
           onUpdate: handleSelect,
         })}
-    </Layout>
+    </div>
   );
 }
 
