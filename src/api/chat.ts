@@ -9,12 +9,8 @@ import { callGroqLLM } from "../core/groq.js";
 import { withPostgres } from "../core/postgres.js";
 
 // RAG параметры из env или дефолт
-const RAG_TOP_K = Number(process.env.RAG_TOP_K) || 50;
-const RAG_EF = Number(process.env.RAG_EF) || 200;
-const RAG_MAX_CHUNKS_TOTAL = Number(process.env.RAG_MAX_CHUNKS_TOTAL) || 14;
-const RAG_MAX_CHUNKS_PER_DOC = Number(process.env.RAG_MAX_CHUNKS_PER_DOC) || 5;
-const RAG_MAX_CHARS_TOTAL = Number(process.env.RAG_MAX_CHARS_TOTAL) || 8000;
-const MAX_CONTEXT_CHARS = Number(process.env.MAX_CONTEXT_CHARS) || 12000;
+const RAG_TOP_K = Number(process.env.RAG_TOP_K);
+const MAX_CONTEXT_CHARS = Number(process.env.MAX_CONTEXT_CHARS);
 
 const ChatSchema = z.object({
   question: z.string().min(1),

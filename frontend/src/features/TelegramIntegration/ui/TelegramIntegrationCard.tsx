@@ -14,12 +14,9 @@ import { ConnectionInstructions } from "./ConnectionInstructions";
 import { ConnectionForm } from "./ConnectionForm";
 import { ConnectionFooter } from "./ConnectionFooter";
 
-const noop = () => undefined;
-
 export const TelegramIntegrationCard = ({
   isExpanded = false,
-  onExpand = noop,
-  onCollapse = noop,
+  onExpand,
 }: TelegramIntegrationCardProps) => {
   // Используем хук для получения статуса - загружается независимо от isExpanded
   const {
@@ -57,13 +54,12 @@ export const TelegramIntegrationCard = ({
       className="telegram-integration-card"
       isExpanded={isExpanded}
       onExpand={onExpand}
-      onCollapse={onCollapse}
       header={header}
       closeButtonAriaLabel="Свернуть карточку Telegram"
       contentClassName="telegram-integration-card__body"
     >
       <Layout direction="column" style={{ gap: "var(--space-m)", flex: 1 }}>
-        <Text size="s" view="primary">
+        <Text size="s" view="primary" className="hidden-mobile">
           {isPreparing(currentStatus)
             ? "Настроим подключение бота, вебхуки и сценарии ответов. Здесь появится управление токеном и выбором workspace."
             : isConnected(currentStatus)

@@ -26,17 +26,28 @@ export async function handleSubscriptions(
     }
 
     // Сохраняем/обновляем подписки
-    // Фильтруем undefined из enabled, workspace_id, role_id
-    const cleanItems = items.map(item => ({
-      peer_id: item.peer_id,
-      peer_type: item.peer_type,
-      title: item.title,
-      ...(item.enabled !== undefined && { enabled: item.enabled }),
-      ...(item.workspace_id !== undefined && {
-        workspace_id: item.workspace_id,
-      }),
-      ...(item.role_id !== undefined && { role_id: item.role_id }),
-    }));
+    // Передаем null для не переданных полей, чтобы SQL мог сохранить старое значение через COALESCE
+    const cleanItems = items.map(item => {
+      const base = {
+        peer_id: item.peer_id,
+        peer_type: item.peer_type,
+        title: item.title,
+        enabled: item.enabled !== undefined ? item.enabled : null,
+        workspace_id:
+          item.workspace_id !== undefined ? item.workspace_id : null,
+        role_id: item.role_id !== undefined ? item.role_id : null,
+        mention_only:
+          item.mention_only !== undefined ? item.mention_only : null,
+      };
+
+      // Для личных чатов всегда принудительно mention_only = false,
+      // чтобы в личке бот по умолчанию отвечал на все входящие
+      if (item.peer_type === "user") {
+        return { ...base, mention_only: false };
+      }
+
+      return base;
+    });
     await upsertSubscriptions(account_id, request.userId, cleanItems);
 
     // Возвращаем актуальный список

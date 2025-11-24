@@ -232,6 +232,7 @@ export interface TelegramSubscription {
   enabled: boolean;
   workspace_id: string | null;
   role_id: string | null;
+  mention_only: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -261,6 +262,7 @@ export async function listSubscriptions(
       enabled: row.enabled,
       workspace_id: row.workspace_id || null,
       role_id: row.role_id || null,
+      mention_only: row.mention_only ?? true,
       created_at: row.created_at,
       updated_at: row.updated_at,
     }));
@@ -274,9 +276,10 @@ export async function upsertSubscriptions(
     peer_id: string;
     peer_type: "user" | "chat" | "channel";
     title: string;
-    enabled?: boolean;
+    enabled?: boolean | null;
     workspace_id?: string | null;
     role_id?: string | null;
+    mention_only?: boolean | null;
   }>
 ): Promise<void> {
   const account = await getTelegramAccount(accountId, userId);
@@ -285,20 +288,42 @@ export async function upsertSubscriptions(
   }
   await withTransaction(async client => {
     for (const it of items) {
+      // Для личных чатов (peer_type = 'user') всегда принудительно mention_only = false
+      const isDirect = it.peer_type === "user";
+
+      // Для INSERT: если поле null, используем дефолт (enabled=false, workspace_id=null, role_id=null)
+      // Для UPDATE: если поле null, COALESCE сохранит старое значение
+      const enabledValue = it.enabled !== null ? it.enabled : false;
+      const workspaceIdValue =
+        it.workspace_id !== null ? it.workspace_id : null;
+      const roleIdValue = it.role_id !== null ? it.role_id : null;
+      const mentionOnlyValue = isDirect
+        ? false
+        : it.mention_only !== null
+          ? it.mention_only
+          : true;
+
       await client.query(
-        `INSERT INTO telegram_subscriptions (id, telegram_account_id, peer_id, peer_type, title, enabled, workspace_id, role_id, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+        `INSERT INTO telegram_subscriptions (id, telegram_account_id, peer_id, peer_type, title, enabled, workspace_id, role_id, mention_only, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
          ON CONFLICT (telegram_account_id, peer_id)
-         DO UPDATE SET title = EXCLUDED.title, enabled = EXCLUDED.enabled, workspace_id = EXCLUDED.workspace_id, role_id = EXCLUDED.role_id, updated_at = NOW()`,
+         DO UPDATE SET 
+           title = EXCLUDED.title,
+           enabled = COALESCE(EXCLUDED.enabled, telegram_subscriptions.enabled),
+           workspace_id = COALESCE(EXCLUDED.workspace_id, telegram_subscriptions.workspace_id),
+           role_id = COALESCE(EXCLUDED.role_id, telegram_subscriptions.role_id),
+           mention_only = COALESCE(EXCLUDED.mention_only, telegram_subscriptions.mention_only),
+           updated_at = NOW()`,
         [
           `sub_${accountId}_${it.peer_id}`,
           accountId,
           parseInt(it.peer_id, 10),
           it.peer_type,
           it.title,
-          typeof it.enabled === "boolean" ? it.enabled : false,
-          it.workspace_id || null,
-          it.role_id || null,
+          enabledValue,
+          workspaceIdValue,
+          roleIdValue,
+          mentionOnlyValue,
         ]
       );
     }

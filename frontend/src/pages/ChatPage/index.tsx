@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Layout } from "@consta/uikit/Layout";
 import { Text } from "@consta/uikit/Text";
 import { Button } from "@consta/uikit/Button";
@@ -88,6 +88,12 @@ export const ChatPage = () => {
     setCurrentRole(updatedRole);
     setEditingRole(null);
   };
+
+  useEffect(() => {
+    return () => {
+      setIsAssistantWidgetOpen(false);
+    };
+  }, []);
 
   return (
     <div className="chat-container">

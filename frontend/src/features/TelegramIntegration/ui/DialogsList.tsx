@@ -50,19 +50,24 @@ export const DialogsList = ({
     <div ref={parentRef} className="tg-dialogs-list">
       <div
         style={{
-          height: `${virtualizer.getTotalSize()}px`,
+          height: `${
+            (virtualizer.getTotalSize() * 100) /
+            (parentRef.current?.offsetHeight || 1)
+          }%`,
           width: "100%",
           position: "relative",
         }}
       >
         {virtualizer.getVirtualItems().map(virtualItem => {
-          const item = dialogs[virtualItem.index];
+          const dialog = dialogs[virtualItem.index];
           const subscription = subscriptions.find(
-            s => s.peer_id === item.peer_id
+            s => s.peer_id === dialog.peer_id
           );
           return (
             <div
-              key={`${item.peer_type}_${item.peer_id}`}
+              key={`${dialog.peer_type}_${dialog.peer_id}`}
+              ref={virtualizer.measureElement}
+              className="tg-dialogs-list__item"
               style={{
                 position: "absolute",
                 top: 0,
@@ -73,7 +78,7 @@ export const DialogsList = ({
               }}
             >
               <DialogItem
-                item={item}
+                dialog={dialog}
                 account_id={accountId}
                 subscription={subscription}
               />

@@ -1,3 +1,3 @@
-export { UploadModal } from "./UploadModal";
+export { DocumentManagementSidebar } from "./DocumentManagementSidebar";
 export { DocumentManagementPanel } from "./ui/DocumentManagementPanel";
-export type { Document } from "./UploadModal/types";
+export type { Document } from "./DocumentManagementSidebar/types";

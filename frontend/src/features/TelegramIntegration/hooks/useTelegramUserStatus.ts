@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getStatus } from "@shared/api/telegramUser";
 import { queryKeys } from "@shared/query/queryKeys";
+import type { BadgeProps } from "@consta/uikit/Badge";
 
 export type TelegramAccountStatus =
   | "pending_code"
@@ -8,6 +9,11 @@ export type TelegramAccountStatus =
   | "connected"
   | "flood_wait"
   | "preparing";
+
+export type IntegrationStatusLabel = {
+  label: string;
+  status: BadgeProps["status"];
+};
 
 interface UseTelegramUserStatusResult {
   status: TelegramAccountStatus;

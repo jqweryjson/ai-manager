@@ -1,9 +1,8 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@consta/uikit/Button";
 import { IconCommentFilled } from "@consta/icons/IconCommentFilled";
-import { IconDocFilled } from "@consta/icons/IconDocFilled";
+import { IconShare } from "@consta/icons/IconShare";
 import { IconSettings } from "@consta/icons/IconSettings";
-import { IconAllDone } from "@consta/icons/IconAllDone";
 
 export const MobileBottomNav = () => {
   const navigate = useNavigate();
@@ -26,17 +25,7 @@ export const MobileBottomNav = () => {
       <div className="mobile-bottom-nav__button">
         <Button
           onlyIcon
-          iconLeft={IconDocFilled}
-          view={isActive("/app/documents") ? "primary" : "clear"}
-          size="m"
-          title="Документы"
-          onClick={() => navigate("/app/documents")}
-        />
-      </div>
-      <div className="mobile-bottom-nav__button">
-        <Button
-          onlyIcon
-          iconLeft={IconSettings}
+          iconLeft={IconShare}
           view={isActive("/app/integrations") ? "primary" : "clear"}
           size="m"
           title="Интеграции"
@@ -46,7 +35,7 @@ export const MobileBottomNav = () => {
       <div className="mobile-bottom-nav__button">
         <Button
           onlyIcon
-          iconLeft={IconAllDone}
+          iconLeft={IconSettings}
           view={isActive("/app/settings") ? "primary" : "clear"}
           size="m"
           title="Настройки"

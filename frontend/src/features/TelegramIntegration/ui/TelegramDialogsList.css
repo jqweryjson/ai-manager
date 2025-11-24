@@ -1,8 +1,12 @@
 .tg-dialogs-list {
   overflow-y: auto;
   scroll-behavior: smooth;
-  height: 360px; /* фиксированная высота для виртуализации */
-  position: relative;
+  flex: 1;
+}
+
+.tg-dialogs-list__container {
+  gap: var(--space-s);
+  flex: 1;
 }
 
 .tg-dialogs-item {
@@ -17,8 +21,12 @@
   border-radius: 2px;
 }
 
+.tg-dialogs-list__item {
+  animation: appear 0.3s ease-in-out both;
+}
+
 .tg-dialogs-item--enabled {
-  background-color: var(--color-bg-success);
+  background: linear-gradient(to right, transparent, #2b2337 40%);
 }
 
 .tg-dialogs-item__header {
@@ -26,6 +34,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-s);
+  min-width: 0;
 }
 
 .tg-dialogs-item__emoji {
@@ -35,16 +44,11 @@
 }
 
 .tg-dialogs-item__titles {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  overflow: hidden;
 }
 
-.tg-dialogs-item__config {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  justify-content: flex-end;
-  min-width: 0;
+@media (max-width: 767px) {
+  .tg-dialogs-item {
+    padding: 0;
+  }
 }

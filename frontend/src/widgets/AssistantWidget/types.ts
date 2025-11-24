@@ -12,6 +12,7 @@ export interface AssistantWidgetProps {
   // Начальные значения
   initialWorkspaceId?: string | null;
   initialRoleId?: string | null;
+  initialMentionOnly?: boolean;
 
   // Заголовок виджета (опционально, по умолчанию "Настройки Ассистента")
   title?: string;
@@ -23,8 +24,10 @@ export interface AssistantWidgetProps {
   onChange?: ({
     workspaceId,
     roleId,
+    mentionOnly,
   }: {
     workspaceId: string | null;
     roleId: string | null;
+    mentionOnly: boolean;
   }) => void;
 }

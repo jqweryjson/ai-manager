@@ -16,6 +16,7 @@
 .telegram-integration-card__body {
   flex: 1;
   min-height: 0;
+  padding-right: var(--space-2xs);
 }
 
 .telegram-integration-card__list {

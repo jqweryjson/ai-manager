@@ -229,7 +229,7 @@
     - [x] Фронтенд: рефакторинг компонентов (разделение на подкомпоненты и хуки)
     - [x] Виртуализация списка диалогов (@tanstack/react-virtual)
   - [ ] Итерация 3.5: Управление автоответами (workspace + role + enabled)
-    - [ ] **Терминология**: Подписка (subscription) = конфигурация автоответов для чата (peer_id + workspace_id + role_id + enabled)
+    - [x] **Терминология**: Подписка (subscription) = конфигурация автоответов для чата (peer_id + workspace_id + role_id + enabled, enabled=true = активная подписка)
     - [x] **Шаг 1: БД и Backend API**
       - [x] Миграция: добавить `workspace_id`, `role_id` в `telegram_subscriptions`
         - [x] `workspace_id VARCHAR(50) REFERENCES workspaces(id) ON DELETE CASCADE`
@@ -263,30 +263,25 @@
         - [x] Функция `saveConfig()` — вызов API
         - [x] Инвалидация кеша через React Query
     - [x] **Шаг 4: Frontend — Компоненты**
-      - [x] Компонент `SubscriptionStatusBadge`:
-        - [x] Отображает: "Включено" (зеленый), "Выключено" (серый), "Не настроено" (желтый), "Сохранение..." (синий)
       - [x] Компонент `SubscriptionConfigPanel`:
-        - [x] Селектор workspace (mode="selector", size="s")
-        - [x] Селектор role (mode="selector", size="s")
-        - [x] Переключатель enabled/disabled (Switch)
-        - [x] **Логика**: Switch disabled, если workspace или role не выбраны
-        - [x] Бейджик статуса
-        - [x] Адаптивный layout (desktop: row, mobile: column)
+        - [x] Бейджи для workspace/role вместо внутренних комбобоксов
+        - [x] Кнопка \"Настройки\" → открывает `AssistantWidget` (overlay) для выбора workspace/role
+        - [x] Одна кнопка \"Включить/Отключить автоответы\" вместо чекбокса + отдельного сохранения
+        - [x] Кнопка выключена, если не выбраны workspace или role
       - [x] Обновить `DialogItem`:
         - [x] Интеграция `SubscriptionConfigPanel` в одну строку с именем чата
         - [x] Flex layout с `justify-content: space-between`
-        - [x] Убрано раскрытие (все в одной строке)
+        - [x] Подсветка активных чатов (`enabled=true`) фоном success
       - [x] Обновить `TelegramDialogsList`:
         - [x] Загружать подписки через `useTelegramSubscriptions`
         - [x] Передавать конфигурацию в `DialogItem` через `DialogsList`
-      - [x] Стили:
-        - [x] `.subscription-config-panel` с inline layout (row)
-        - [x] Адаптивные стили для мобильной версии
+        - [x] Сортировка: сначала все чаты с подписками (enabled=true выше, затем enabled=false), ниже чаты без подписки
+        - [x] Виртуализированный список с фиксированной высотой контейнера
     - [ ] **Шаг 5: Интеграция и тестирование**
       - [ ] Функциональное тестирование:
-        - [ ] Выбор workspace и role
-        - [ ] Включение/отключение подписки
-        - [ ] Сохранение конфигурации на backend
+        - [x] Выбор workspace и role сохраняется без сброса enabled
+        - [x] Включение/отключение подписки обновляет UI и backend
+        - [ ] Массовое тестирование на разных типах чатов (user/chat/channel)
       - [ ] Адаптивность:
         - [ ] Desktop (1920px, 1366px)
         - [ ] Tablet (768px)
@@ -303,7 +298,7 @@
     - [ ] Эндпоинт POST `/api/tg-user/disconnect`
     - [ ] Фронтенд: кнопка "Отключить"
     - [ ] Управление несколькими аккаунтами (если нужно)
-  - [ ] Итерация 6: Telegram Listener (прослушивание сообщений)
+  - [ ] Итерация 6: Telegram Listener (прослушивание сообщений) — отложено, базовый Listener используется только для логов и отладки
     - [x] **Шаг 1: Создание Telegram Listener Worker**
       - [x] Создать `src/workers/telegram-listener.ts`
       - [x] Класс `TelegramListenerManager`:
@@ -329,6 +324,7 @@
         - [x] Вывод новых сообщений в консоль (чат, отправитель, текст, workspace, role)
         - [x] Логирование старта/остановки слушателей
         - [x] Логирование ошибок
+      - [x] Рефактор: вынесены `clientManager`, `messageProcessor`, `eventSender`, `types` (готово для будущих интеграций вроде WhatsApp)
     - [x] **Шаг 2: Docker интеграция**
       - [x] Создать `Dockerfile` для backend
       - [x] Обновить `docker-compose.yml`:
@@ -357,12 +353,51 @@
     - [ ] **Шаг 6: API для управления слушателями (опционально)**
       - [ ] GET `/api/tg-user/listener/status` — статус всех слушателей
       - [ ] POST `/api/tg-user/listener/restart?account_id=xxx` — перезапуск для аккаунта
-  - [ ] Итерация 7: Автоответы через LLM
-    - [ ] Интеграция с chat API для генерации ответов
-    - [ ] Отправка ответов через `client.sendMessage()`
-    - [ ] Троттлинг и rate limiting
-    - [ ] Мониторинг и алерты
-    - [ ] Логирование всех автоответов
+  - [ ] Итерация 7: Автоответы через LLM (шаг 1: интеграция Listener с backend)
+    - [x] Определить минимальный формат события от Listener → backend (`account_id`, `peer_id`, `peer_type`, `workspace_id`, `role_id`, текст, метаданные)
+    - [x] Добавить внутренний endpoint/очередь для событий от Telegram Listener (`POST /internal/tg-user/events`)
+    - [x] Изменить `telegram-listener.ts`: вместо логирования отправлять POST на `/internal/tg-user/events`
+    - [x] Настроить `BACKEND_URL` для listener'а в Docker
+    - [ ] В обработчике событий:
+      - [x] Принимать события от Listener, логировать и проверять структуру
+      - [x] Собрать контекст (workspace, документы, роль) и вызвать существующий chat API → подготовить ответ для Telegram
+        - [x] Создан `src/api/telegram-user/services/chatService.ts` с функцией `generateChatResponse`
+        - [x] Интегрирован вызов chat API в обработчик событий (`handleTelegramEvent`)
+        - [x] Добавлена валидация: проверка наличия текста сообщения, workspace_id и role_id
+        - [x] Ответ генерируется через RAG pipeline (embeddings → Milvus search → context building → Groq LLM)
+        - [x] Ответ возвращается в структурированном виде (пока без отправки в Telegram)
+    - [ ] Реализовать отправку сообщений в Telegram:
+      - [x] функция `sendTelegramMessage(account_id, peer_id, text)`
+        - [x] Создан `src/core/telegram-send.ts` с функцией `sendTelegramMessage(accountId, userId, peerId, peerType, text)`
+        - [x] Используется `getTelegramAccount` + `decryptTelegramAccount` для получения сессии и `createClient` для подключения
+        - [x] Отправка сообщения через `client.sendMessage` с корректным `PeerUser/PeerChat/PeerChannel`
+      - [x] эндпоинт `POST /api/tg-user/send` (используется только сервером/ Listener-ом)
+        - [x] Добавлен хендлер `handleSendMessage` в `src/api/telegram-user/handlers/send.ts`
+        - [x] Зарегистрирован маршрут в `src/api/telegram-user/index.ts`
+        - [x] Эндпоинт принимает `account_id`, `peer_id`, `peer_type`, `text` и вызывает `sendTelegramMessage`
+      - [x] В `handleTelegramEvent` после генерации ответа вызывается `sendTelegramMessage`, чтобы автоответ реально уходил в Telegram-чат
+    - [ ] Добавить базовые метрики и логирование автоответов (успех/ошибка, latency)
+  - [ ] **Итерация 8: Синхронизация подписок с удалёнными диалогами (техническое обслуживание)**
+    - [ ] **Проблема**: При удалении диалога в Telegram подписка остаётся в БД, создавая "мёртвые" подписки
+    - [ ] **Решение**: Автоматическая очистка подписок, которых нет в актуальном списке диалогов
+    - [ ] **Шаг 1: БД**
+      - [ ] Миграция: добавить `last_synced_at TIMESTAMP WITH TIME ZONE` в `telegram_accounts`
+      - [ ] Обновить тип `TelegramAccount`: добавить `last_synced_at: Date | null`
+    - [ ] **Шаг 2: Core функция синхронизации**
+      - [ ] Создать функцию `syncSubscriptionsWithDialogs(accountId, userId, actualPeerIds: string[])` в `telegram-account-postgres.ts`
+      - [ ] Логика: получить все подписки → найти те, которых нет в `actualPeerIds` → удалить их
+      - [ ] Обновить `last_synced_at` для аккаунта после синхронизации
+    - [ ] **Шаг 3: Интеграция в загрузку диалогов**
+      - [ ] В `handleAllDialogs` после получения диалогов:
+        - [ ] Извлечь `peer_id` из всех диалогов: `const actualPeerIds = dialogs.map(d => d.peer_id)`
+        - [ ] Проверить `last_synced_at` аккаунта:
+          - [ ] Если `NULL` или прошло > 7 дней → вызвать `syncSubscriptionsWithDialogs(...)`
+          - [ ] Иначе → пропустить (оптимизация: не на каждый запрос)
+      - [ ] Логировать результат: `✅ Синхронизировано подписок: удалено X мёртвых подписок`
+    - [ ] **Шаг 4 (опционально): Ручная синхронизация**
+      - [ ] Эндпоинт `POST /api/tg-user/subscriptions/sync?account_id=xxx`
+      - [ ] Игнорирует `last_synced_at` и синхронизирует сразу
+      - [ ] Кнопка "Очистить удалённые подписки" в UI (опционально)
 
 - [ ] 9. Definition of Done
   - [ ] Аккаунт подключается; session зашифрована и хранится безопасно

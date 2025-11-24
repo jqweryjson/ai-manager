@@ -29,14 +29,10 @@
 
 @media (max-width: 767px) {
   .integrations-page {
-    gap: var(--space-l);
+    gap: var(--space-s);
   }
 
   .integrations-page__grid {
-    gap: var(--space-m);
-  }
-
-  .integrations-page__expanded {
-    padding-bottom: var(--space-m);
+    gap: var(--space-s);
   }
 }

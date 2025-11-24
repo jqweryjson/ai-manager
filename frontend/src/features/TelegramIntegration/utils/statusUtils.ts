@@ -1,4 +1,7 @@
-import type { TelegramAccountStatus } from "../hooks/useTelegramUserStatus";
+import type {
+  IntegrationStatusLabel,
+  TelegramAccountStatus,
+} from "../hooks/useTelegramUserStatus";
 
 /**
  * Определяет, подключен ли аккаунт
@@ -17,12 +20,14 @@ export function isPreparing(status: TelegramAccountStatus): boolean {
 /**
  * Получает текстовую метку статуса
  */
-export function getStatusLabel(status: TelegramAccountStatus): string {
+export function getStatusLabel(
+  status: TelegramAccountStatus
+): IntegrationStatusLabel {
   if (isPreparing(status)) {
-    return "подготовка";
+    return { label: "подготовка", status: "system" };
   }
   if (isConnected(status)) {
-    return "подключено";
+    return { label: "подключено", status: "success" };
   }
-  return "не подключено";
+  return { label: "не подключено", status: "error" };
 }

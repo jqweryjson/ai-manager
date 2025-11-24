@@ -3,6 +3,9 @@
   width: 100%;
   cursor: pointer;
   transition: box-shadow 0.2s ease;
+  & .Card {
+    padding: var(--space-l);
+  }
 }
 
 .expandable-card:focus-within {
@@ -41,7 +44,6 @@
   flex-direction: column;
   gap: var(--space-m);
   overflow-y: auto;
-  padding-right: var(--space-xs);
   flex: 1;
   min-height: 0;
 }
@@ -53,4 +55,15 @@
 .expandable-card__content::-webkit-scrollbar-thumb {
   border-radius: 6px;
   background: var(--color-bg-border);
+}
+
+@media (max-width: 767px) {
+  .expandable-card {
+    & .Card {
+      padding: var(--space-xs);
+    }
+  }
+  .expandable-card__inner {
+    gap: var(--space-s);
+  }
 }

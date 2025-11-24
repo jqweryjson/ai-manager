@@ -9,31 +9,28 @@ import { saveSubscriptions } from "@shared/api/telegramUser";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@shared/query/queryKeys";
 import "./SubscriptionConfigPanel.css";
+import type { DialogItem as DialogItemType } from "@shared/api/telegramUser";
+import type { SubscriptionItem } from "@shared/api/telegramUser";
 
 interface SubscriptionConfigPanelProps {
-  peer_id: string;
-  peer_type: "user" | "chat" | "channel";
-  title: string;
   account_id: string;
-  workspace_id: string | null;
-  role_id: string | null;
-  enabled: boolean;
+  dialog: DialogItemType;
+  subscription: SubscriptionItem | undefined;
 }
 
 export function SubscriptionConfigPanel({
-  peer_id,
-  peer_type,
-  title,
+  dialog,
   account_id,
-  workspace_id,
-  role_id,
-  enabled,
+  subscription,
 }: SubscriptionConfigPanelProps) {
   const { workspaces } = useWorkspace();
   const { roles } = useRole();
   const queryClient = useQueryClient();
   const [isWidgetOpen, setIsWidgetOpen] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  const { workspace_id, role_id, enabled, mention_only } = subscription ?? {};
+  const { peer_id, peer_type, title } = dialog;
 
   // Находим названия workspace и role по ID
   const workspaceName = useMemo(
@@ -118,43 +115,51 @@ export function SubscriptionConfigPanel({
     <>
       <div className="subscription-config-panel">
         {/* Badges с workspace и role */}
-        <div className="subscription-config-panel__badges">
+        <div
+          className="subscription-config-panel__badges"
+          onClick={() => setIsWidgetOpen(true)}
+        >
           <Badge
             size="xs"
             label={workspaceName || "Workspace не выбран"}
             status={workspace_id ? "success" : "warning"}
+            style={{ alignSelf: "flex-end" }}
           />
           <Badge
             size="xs"
             label={roleName || "Роль не выбрана"}
             status={role_id ? "success" : "warning"}
+            style={{ alignSelf: "flex-end" }}
           />
         </div>
 
-        {/* Кнопка настроек */}
-        <Button
-          size="xs"
-          view="ghost"
-          iconLeft={IconSettings}
-          label="Настройки"
-          onClick={() => setIsWidgetOpen(true)}
-          disabled={isSavingSettings}
-        />
+        <div className="subscription-config-panel__buttons">
+          {/* Кнопка настроек */}
+          <Button
+            size="xs"
+            view="ghost"
+            onlyIcon
+            iconLeft={IconSettings}
+            label="Настройки"
+            onClick={() => setIsWidgetOpen(true)}
+            disabled={isSavingSettings}
+          />
 
-        {/* Кнопка включить/отключить */}
-        <Button
-          view={enabled ? "ghost" : "primary"}
-          size="xs"
-          onClick={handleToggleEnabled}
-          disabled={isSavingSettings || !canToggle}
-          label={
-            isSavingSettings
-              ? "Сохранение..."
-              : enabled
-                ? "Отключить автоответы"
-                : "Включить автоответы"
-          }
-        />
+          {/* Кнопка включить/отключить */}
+          <Button
+            view={enabled ? "ghost" : "primary"}
+            size="xs"
+            onClick={handleToggleEnabled}
+            disabled={isSavingSettings || !canToggle}
+            label={
+              isSavingSettings
+                ? "Сохранение..."
+                : enabled
+                  ? "Отключить автоответы"
+                  : "Включить автоответы"
+            }
+          />
+        </div>
       </div>
 
       {/* Виджет настроек */}
@@ -166,8 +171,8 @@ export function SubscriptionConfigPanel({
           containerSelector=".integrations-page__expanded"
           initialWorkspaceId={workspace_id}
           initialRoleId={role_id}
+          initialMentionOnly={mention_only}
           title={`Настройки для ${title}`}
-          showDocuments={false}
           onChange={handleSettingsChange}
         />
       )}

@@ -4,7 +4,6 @@ export type TelegramIntegrationStatus =
   | "preparing";
 
 export interface TelegramIntegrationCardProps {
-  isExpanded?: boolean;
-  onExpand?: () => void;
-  onCollapse?: () => void;
+  isExpanded: boolean;
+  onExpand: (isExpanded: boolean) => void;
 }

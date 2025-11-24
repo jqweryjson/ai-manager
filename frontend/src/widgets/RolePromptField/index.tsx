@@ -129,7 +129,7 @@ export const RolePromptField = ({
           value={currentPrompt}
           onChange={handlePromptChange}
           placeholder="Промпт роли ассистента..."
-          rows={isCompact ? 5 : undefined}
+          rows={isCompact ? 15 : undefined}
           size="xs"
           style={{
             flex: 1,

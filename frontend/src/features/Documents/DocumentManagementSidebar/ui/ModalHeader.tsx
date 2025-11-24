@@ -1,7 +1,7 @@
 import { Text } from "@consta/uikit/Text";
 import { Button } from "@consta/uikit/Button";
 import { Layout } from "@consta/uikit/Layout";
-import { IconClose } from "@consta/icons/IconClose";
+import { IconArrowUndone } from "@consta/icons/IconArrowUndone";
 
 interface ModalHeaderProps {
   onClose: () => void;
@@ -20,8 +20,8 @@ export const ModalHeader = ({ onClose }: ModalHeaderProps) => {
       </Text>
       <Button
         onlyIcon
-        iconLeft={IconClose}
-        size="s"
+        iconLeft={IconArrowUndone}
+        size="xs"
         view="ghost"
         onClick={onClose}
       />

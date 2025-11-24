@@ -8,6 +8,9 @@ import { useDebouncedSearch } from "../hooks/useDebouncedSearch";
 import { useDialogsFilter } from "../hooks/useDialogsFilter";
 import { DialogsSearchBar } from "./DialogsSearchBar";
 import { DialogsList } from "./DialogsList";
+import { SkeletonBrick } from "@consta/uikit/Skeleton";
+
+import "./TelegramDialogsList.css";
 
 interface TelegramDialogsListProps {
   accountId?: string;
@@ -51,7 +54,7 @@ export const TelegramDialogsList = ({
     filters,
   });
 
-  // Перемещаем подключенные чаты наверх, сохраняя исходный порядок
+  // Сортируем чаты: сначала все подписки (enabled=true сверху, enabled=false ниже), потом неподключенные
   const sortedDialogs = useMemo(() => {
     const subscriptions = subscriptionsData?.subscriptions || [];
     const subscriptionsMap = new Map(
@@ -61,29 +64,36 @@ export const TelegramDialogsList = ({
       ])
     );
 
-    // Разделяем на две группы: подключенные и неподключенные
+    // Разделяем на три группы: активные подписки, неактивные подписки, без подписки
     const enabled: typeof filteredDialogs = [];
-    const disabled: typeof filteredDialogs = [];
+    const hasSubscription: typeof filteredDialogs = [];
+    const noSubscription: typeof filteredDialogs = [];
 
     filteredDialogs.forEach(dialog => {
       const sub = subscriptionsMap.get(dialog.peer_id) as
         | { enabled: boolean }
         | undefined;
-      if (sub?.enabled === true) {
-        enabled.push(dialog);
+      if (sub) {
+        // Есть подписка
+        if (sub.enabled === true) {
+          enabled.push(dialog);
+        } else {
+          hasSubscription.push(dialog);
+        }
       } else {
-        disabled.push(dialog);
+        // Нет подписки
+        noSubscription.push(dialog);
       }
     });
 
-    // Сначала подключенные (в исходном порядке), потом неподключенные (в исходном порядке)
-    return [...enabled, ...disabled];
+    // Сначала активные подписки, потом неактивные подписки, потом без подписки
+    return [...enabled, ...hasSubscription, ...noSubscription];
   }, [filteredDialogs, subscriptionsData?.subscriptions]);
 
   const isSearchMode = search.trim().length > 0;
 
   return (
-    <Layout direction="column" style={{ gap: "var(--space-s)", flex: "1" }}>
+    <Layout direction="column" className="tg-dialogs-list__container">
       <DialogsSearchBar
         search={search}
         onSearchChange={setSearch}
@@ -95,7 +105,7 @@ export const TelegramDialogsList = ({
       />
 
       {isLoading ? (
-        <Text view="secondary">Загрузка диалогов...</Text>
+        <SkeletonBrick height={"100%"} width={"100%"} />
       ) : error ? (
         <Text view="alert">
           Ошибка загрузки диалогов:{" "}
