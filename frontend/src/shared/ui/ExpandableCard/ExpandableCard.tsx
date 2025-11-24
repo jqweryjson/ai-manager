@@ -1,6 +1,9 @@
 import { Card } from "@consta/uikit/Card";
 import { Button } from "@consta/uikit/Button";
-import { IconClose } from "@consta/icons/IconClose";
+
+import { IconArrowDown } from "@consta/icons/IconArrowDown";
+import { IconArrowUp } from "@consta/icons/IconArrowUp";
+
 import cn from "classnames";
 import type { KeyboardEvent, ReactNode } from "react";
 import "./ExpandableCard.css";
@@ -9,8 +12,8 @@ export interface ExpandableCardProps {
   header: ReactNode;
   children: ReactNode;
   isExpanded: boolean;
-  onExpand: () => void;
-  onCollapse: () => void;
+  onExpand: (isExpanded: boolean) => void;
+
   className?: string;
   contentClassName?: string;
   closeButtonAriaLabel?: string;
@@ -21,7 +24,6 @@ export const ExpandableCard = ({
   children,
   isExpanded,
   onExpand,
-  onCollapse,
   className,
   contentClassName,
   closeButtonAriaLabel = "Свернуть карточку",
@@ -38,7 +40,7 @@ export const ExpandableCard = ({
     }
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      onExpand();
+      onExpand(!isExpanded);
     }
   };
 
@@ -47,32 +49,25 @@ export const ExpandableCard = ({
       className={rootClassName}
       role={isExpanded ? undefined : "button"}
       tabIndex={isExpanded ? -1 : 0}
-      onClick={isExpanded ? undefined : onExpand}
+      onClick={() => onExpand(!isExpanded)}
       onKeyDown={handleKeyDown}
       aria-expanded={isExpanded}
     >
-      <Card
-        verticalSpace="l"
-        horizontalSpace="l"
-        shadow
-        className="expandable-card__inner"
-      >
+      <Card shadow className="expandable-card__inner">
         <div className="expandable-card__header">
           <div className="expandable-card__header-content">{header}</div>
 
-          {isExpanded && (
-            <Button
-              size="xs"
-              view="clear"
-              iconLeft={IconClose}
-              onlyIcon
-              aria-label={closeButtonAriaLabel}
-              onClick={event => {
-                event.stopPropagation();
-                onCollapse();
-              }}
-            />
-          )}
+          <Button
+            size="xs"
+            view="clear"
+            iconLeft={isExpanded ? IconArrowDown : IconArrowUp}
+            onlyIcon
+            aria-label={closeButtonAriaLabel}
+            onClick={event => {
+              event.stopPropagation();
+              onExpand(!isExpanded);
+            }}
+          />
         </div>
 
         <div

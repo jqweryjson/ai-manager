@@ -74,6 +74,7 @@ export const SubscriptionItemInputSchema = z
     enabled: z.boolean().optional(),
     workspace_id: z.string().nullable().optional(),
     role_id: z.string().nullable().optional(),
+    mention_only: z.boolean().optional(),
   })
   .refine(
     data => {
@@ -153,6 +154,7 @@ export const SubscriptionItemSchema = z.object({
   enabled: z.boolean(),
   workspace_id: z.string().nullable(),
   role_id: z.string().nullable(),
+  mention_only: z.boolean(),
 });
 
 export const GetSubscriptionsResponseSchema = z.object({

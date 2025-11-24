@@ -2,7 +2,7 @@ import { Layout } from "@consta/uikit/Layout";
 import { Button } from "@consta/uikit/Button";
 import type { UseTelegramConnectionReturn } from "../hooks/useTelegramConnection";
 import type { TelegramAccountStatus } from "../hooks/useTelegramUserStatus";
-import { isPreparing, isConnected } from "../utils/statusUtils";
+import { isConnected } from "../utils/statusUtils";
 
 interface ConnectionFooterProps {
   status: TelegramAccountStatus;
@@ -26,12 +26,11 @@ export const ConnectionFooter = ({
         gap: "var(--space-s)",
       }}
     >
-      {isPreparing(status) ? (
-        <Button label="Скоро" view="secondary" disabled />
-      ) : isConnected(status) && accountId ? (
+      {isConnected(status) && accountId ? (
         <Button
           label="Отключить"
           view="secondary"
+          size="s"
           onClick={handleDisconnect}
           disabled={loading}
         />

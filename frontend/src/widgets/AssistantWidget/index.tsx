@@ -3,16 +3,19 @@ import { Sidebar } from "@consta/uikit/Sidebar";
 import { Layout } from "@consta/uikit/Layout";
 import { Text } from "@consta/uikit/Text";
 import { Button } from "@consta/uikit/Button";
-import { IconClose } from "@consta/icons/IconClose";
+import { IconArrowUndone } from "@consta/icons/IconArrowUndone";
 import { DocumentManagementPanel } from "@/features/Documents";
 import { WorkspaceCombobox } from "@/widgets/WorkspaceCombobox";
 import { RoleCombobox } from "@/widgets/RoleCombobox";
 import { useWorkspace } from "@/shared/hooks/useWorkspace";
 import { useRole } from "@/shared/hooks/useRole";
 import type { AssistantWidgetProps } from "./types";
-import "./styles.css";
 import type { Workspace } from "@/shared/context/WorkspaceContext";
 import type { AssistantRole } from "@/shared/api/roles";
+
+import "./styles.css";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { ExtraSettings } from "./ExtraSettings";
 
 export const AssistantWidget = ({
   mode,
@@ -23,10 +26,12 @@ export const AssistantWidget = ({
   initialRoleId = null,
   title: widgetTitle = "Настройки Ассистента",
   showDocuments = true,
+  initialMentionOnly = false,
   onChange,
 }: AssistantWidgetProps) => {
   const { workspaces } = useWorkspace();
   const { roles } = useRole();
+  const { isMobile } = useIsMobile();
 
   // Локальное состояние для выбранных значений
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(
@@ -37,8 +42,22 @@ export const AssistantWidget = ({
     roles.find(r => r.id === initialRoleId) ?? null
   );
 
+  const [selectedMentionOnly, setSelectedMentionOnly] = useState<boolean>(
+    Boolean(initialMentionOnly)
+  );
+
   const [sidebarContainer, setSidebarContainer] =
     useState<HTMLDivElement | null>(null);
+
+  const handleSave = () => {
+    // Передаем выбранные значения наверх
+    onChange?.({
+      workspaceId: selectedWorkspace?.id || null,
+      roleId: selectedRole?.id || null,
+      mentionOnly: selectedMentionOnly,
+    });
+    onClose?.();
+  };
 
   // Определяем контейнер для Sidebar
   useLayoutEffect(() => {
@@ -48,15 +67,6 @@ export const AssistantWidget = ({
       );
     }
   }, [containerSelector]);
-
-  const handleSave = () => {
-    // Передаем выбранные значения наверх
-    onChange?.({
-      workspaceId: selectedWorkspace?.id || null,
-      roleId: selectedRole?.id || null,
-    });
-    onClose?.();
-  };
 
   const content = (
     <Layout direction="column" className="assistant-widget__content">
@@ -69,7 +79,7 @@ export const AssistantWidget = ({
           <Button
             size="xs"
             view="ghost"
-            iconLeft={IconClose}
+            iconLeft={IconArrowUndone}
             onlyIcon
             onClick={onClose}
           />
@@ -77,37 +87,57 @@ export const AssistantWidget = ({
       </div>
 
       {/* Body */}
-      <div className="assistant-widget__body">
-        {showDocuments && <DocumentManagementPanel />}
+      <Layout
+        direction={isMobile ? "column" : "row"}
+        className="assistant-widget__body-container"
+      >
+        <Layout className="assistant-widget__body">
+          {showDocuments && (
+            <DocumentManagementPanel containerSelector={containerSelector} />
+          )}
 
-        <WorkspaceCombobox
-          mode="selector"
-          value={selectedWorkspace}
-          onChange={ws => {
-            setSelectedWorkspace(ws || null);
-          }}
-        />
+          <WorkspaceCombobox
+            mode="selector"
+            value={selectedWorkspace}
+            onChange={ws => {
+              setSelectedWorkspace(ws || null);
+            }}
+          />
 
-        <RoleCombobox
-          mode="selector"
-          value={selectedRole}
-          onChange={role => {
-            setSelectedRole(role || null);
-          }}
-        />
-      </div>
+          <RoleCombobox
+            mode="selector"
+            value={selectedRole}
+            onChange={role => {
+              setSelectedRole(role || null);
+            }}
+          />
+
+          {isMobile && (
+            <ExtraSettings
+              selectedMentionOnly={selectedMentionOnly}
+              setSelectedMentionOnly={setSelectedMentionOnly}
+            />
+          )}
+        </Layout>
+
+        {!isMobile && (
+          <ExtraSettings
+            selectedMentionOnly={selectedMentionOnly}
+            setSelectedMentionOnly={setSelectedMentionOnly}
+          />
+        )}
+      </Layout>
 
       {/* Footer - показываем только если есть onChange callback */}
       {onChange && (
-        <div className="assistant-widget__footer">
-          <Button
-            size="m"
-            view="primary"
-            label="Сохранить"
-            disabled={!selectedWorkspace && !selectedRole}
-            onClick={handleSave}
-          />
-        </div>
+        <Button
+          size="s"
+          view="primary"
+          label="Сохранить"
+          disabled={!selectedWorkspace && !selectedRole}
+          onClick={handleSave}
+          style={{ alignSelf: "flex-end" }}
+        />
       )}
     </Layout>
   );
@@ -123,7 +153,7 @@ export const AssistantWidget = ({
         position="right"
         hasOverlay
         container={sidebarContainer}
-        rootClassName="assistant-widget"
+        rootClassName="full-sidebar-custom"
       >
         {content}
       </Sidebar>

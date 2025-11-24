@@ -7,12 +7,6 @@
   flex-direction: row;
 }
 
-@media (max-width: 767px) {
-  .layout-main {
-    flex-direction: column;
-  }
-}
-
 .layout-main__content {
   flex: 1;
   min-width: 0;
@@ -23,7 +17,10 @@
 }
 
 @media (max-width: 767px) {
+  .layout-main {
+    flex-direction: column;
+  }
   .layout-main__content {
-    padding: var(--space-m);
+    padding: var(--space-xs);
   }
 }

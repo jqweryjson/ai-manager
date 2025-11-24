@@ -8,3 +8,20 @@
   background-color: var(--color-bg-ghost);
   color: var(--color-typo-primary);
 }
+
+.integration-card-header__content {
+  gap: var(--space-3xs);
+}
+
+@media (max-width: 767px) {
+  .integration-card-header__icon {
+    width: 22px;
+    height: 22px;
+    align-self: baseline;
+    --graphics-size-m: 12px;
+  }
+  .integration-card-header__content {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+}

@@ -33,7 +33,7 @@ export const DocumentItem = ({ document, onDelete }: DocumentItemProps) => {
         onlyIcon
         iconLeft={IconTrash}
         view="ghost"
-        size="s"
+        size="xs"
         onClick={onDelete}
       />
     </Card>

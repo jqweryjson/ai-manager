@@ -44,6 +44,8 @@ export const FileUploadSection = ({
         <Button
           label="Выбрать файл (.txt)"
           view="secondary"
+          style={{ marginLeft: "auto" }}
+          size="s"
           onClick={() => document.getElementById("file-input")?.click()}
           disabled={uploadMutation.isPending}
         />
@@ -51,6 +53,7 @@ export const FileUploadSection = ({
           <Button
             label={uploadMutation.isPending ? "Загрузка..." : "Загрузить"}
             view="primary"
+            size="s"
             onClick={onUpload}
             disabled={uploadMutation.isPending || disabled}
           />

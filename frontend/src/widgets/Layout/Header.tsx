@@ -5,15 +5,32 @@ import { Button } from "@consta/uikit/Button";
 import { Loader } from "@consta/uikit/Loader";
 import { IconSun } from "@consta/icons/IconSun";
 import { IconMoon } from "@consta/icons/IconMoon";
+import { IconExit } from "@consta/icons/IconExit";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "@shared/hooks/useAuth";
 import { useCurrentUserQuery } from "@shared/hooks/useUser";
 import { useTheme } from "@shared/hooks/useTheme";
-import { IconExit } from "@consta/icons/IconExit";
+
+const PAGE_TITLES: Array<{ prefix: string; title: string }> = [
+  { prefix: "/app/chat", title: "Чат" },
+  { prefix: "/app/integrations", title: "Интеграции" },
+  { prefix: "/app/settings", title: "Настройки" },
+  { prefix: "/app", title: "AI Ассистент" },
+  { prefix: "/tg", title: "Telegram Mini App" },
+  { prefix: "/auth", title: "Авторизация" },
+];
+
+function getPageTitle(pathname: string): string {
+  const match = PAGE_TITLES.find(item => pathname.startsWith(item.prefix));
+  return match ? match.title : "AI Ассистент";
+}
 
 export const Header = () => {
   const { logout } = useAuth();
   const { data: user, isLoading } = useCurrentUserQuery();
   const { theme, setTheme } = useTheme();
+  const location = useLocation();
+  const currentTitle = getPageTitle(location.pathname);
 
   const toggleTheme = () => {
     setTheme(theme === "default" ? "dark" : "default");
@@ -40,7 +57,7 @@ export const Header = () => {
     <Layout direction="row" className="header">
       <Layout direction="row" className="header__left">
         <Text className="header__title" view="primary">
-          AI Ассистент
+          {currentTitle}
         </Text>
       </Layout>
 

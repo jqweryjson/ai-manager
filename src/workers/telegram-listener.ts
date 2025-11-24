@@ -1,25 +1,15 @@
-import { TelegramClient } from "telegram";
-import { StringSession } from "telegram/sessions/index.js";
-import { NewMessage } from "telegram/events/index.js";
-import { Api } from "telegram/tl/index.js";
-import {
-  getTelegramAccount,
-  listSubscriptions,
-  TelegramSubscription,
-  decryptTelegramAccount,
-} from "../core/telegram-account-postgres.js";
-import { getPostgresPool, closePostgresPool } from "../core/postgres.js";
-
-interface ClientInfo {
-  client: TelegramClient;
-  accountId: string;
-  userId: string;
-  phone: string;
-}
+import { closePostgresPool } from "../core/postgres.js";
+import { TelegramClientManager } from "./telegram/clientManager.js";
+import { MessageProcessor } from "./telegram/messageProcessor.js";
+import { EventSender } from "./telegram/eventSender.js";
+import type { TelegramClientInfo } from "./telegram/types.js";
 
 class TelegramListenerManager {
-  private clients = new Map<string, ClientInfo>();
+  private clients = new Map<string, TelegramClientInfo>();
   private isShuttingDown = false;
+  private clientManager = new TelegramClientManager();
+  private messageProcessor = new MessageProcessor();
+  private eventSender = new EventSender();
 
   /**
    * Инициализация: загружаем все connected аккаунты с enabled подписками
@@ -28,7 +18,7 @@ class TelegramListenerManager {
     try {
       console.log("🚀 Инициализация Telegram Listener...");
 
-      const accounts = await this.getActiveAccounts();
+      const accounts = await this.clientManager.getActiveAccounts();
       console.log(`📋 Найдено ${accounts.length} аккаунтов для прослушивания`);
 
       for (const account of accounts) {
@@ -45,25 +35,6 @@ class TelegramListenerManager {
   }
 
   /**
-   * Получить все аккаунты со статусом connected и хотя бы одной enabled подпиской
-   */
-  private async getActiveAccounts(): Promise<
-    Array<{ id: string; user_id: string }>
-  > {
-    const pool = getPostgresPool();
-    const result = await pool.query<{ id: string; user_id: string }>(
-      `
-      SELECT DISTINCT ta.id, ta.user_id
-      FROM telegram_accounts ta
-      INNER JOIN telegram_subscriptions ts ON ts.telegram_account_id = ta.id
-      WHERE ta.status = 'connected'
-        AND ts.enabled = true
-    `
-    );
-    return result.rows;
-  }
-
-  /**
    * Запустить слушатель для конкретного аккаунта
    */
   async startListening(accountId: string, userId: string) {
@@ -73,49 +44,17 @@ class TelegramListenerManager {
     }
 
     try {
-      const account = await getTelegramAccount(accountId, userId);
-      if (!account) {
-        console.error(`❌ Аккаунт ${accountId} не найден`);
-        return;
-      }
-
-      if (account.status !== "connected" || !account.session) {
-        console.log(
-          `⚠️  Аккаунт ${accountId} не подключен или нет сессии, пропускаем`
-        );
-        return;
-      }
-
-      // Расшифровываем данные аккаунта
-      const decrypted = decryptTelegramAccount(account);
-      if (!decrypted.session) {
-        console.error(`❌ Не удалось расшифровать сессию для ${accountId}`);
-        return;
-      }
-
-      const session = new StringSession(decrypted.session);
-      const client = new TelegramClient(
-        session,
-        decrypted.apiId,
-        decrypted.apiHash,
-        {
-          connectionRetries: Infinity,
-          autoReconnect: true,
-          retryDelay: 1000,
-          useWSS: false,
-          timeout: 10,
-        }
+      const clientInfo = await this.clientManager.createClient(
+        accountId,
+        userId
       );
-
-      await client.connect();
-
-      // Проверяем, что действительно подключены
-      if (!client.connected) {
-        throw new Error("Не удалось подключиться к Telegram");
+      if (!clientInfo) {
+        return;
       }
 
-      // Обработчик новых сообщений
-      client.addEventHandler(async (event: any) => {
+      const { client } = clientInfo;
+
+      client.addEventHandler(async event => {
         try {
           await this.handleNewMessage(accountId, userId, event);
         } catch (error) {
@@ -123,19 +62,13 @@ class TelegramListenerManager {
             `❌ Ошибка обработки сообщения для ${accountId}:`,
             error
           );
-          // НЕ падаем, продолжаем слушать
         }
-      }, new NewMessage({}));
+      }, this.clientManager.getNewMessageConfig());
 
-      this.clients.set(accountId, {
-        client,
-        accountId,
-        userId,
-        phone: account.phone || "unknown",
-      });
+      this.clients.set(accountId, clientInfo);
 
       console.log(
-        `✅ Слушатель запущен для ${accountId} (${account.phone || "unknown"})`
+        `✅ Слушатель запущен для ${accountId} (${clientInfo.phone})`
       );
     } catch (error) {
       console.error(
@@ -176,72 +109,55 @@ class TelegramListenerManager {
   private async handleNewMessage(
     accountId: string,
     userId: string,
-    event: any
+    messageEvent: any
   ) {
-    const message = event.message;
-    if (!message) return;
+    const message = messageEvent.message;
+    if (!message) {
+      console.log("⚠️  Событие без message");
+      return;
+    }
 
     // Игнорируем собственные сообщения (outgoing)
     if (message.out) {
+      console.log(
+        `⏭️  Пропущено исходящее сообщение от ${accountId} в ${message.peer_id?.userId || message.peer_id?.chatId || message.peer_id?.channelId || "unknown"}`
+      );
       return;
     }
 
     // Получаем peer_id
-    const peer_id = this.extractPeerId(message.peer_id);
+    const peer_id = this.messageProcessor.extractPeerId(
+      message.peer_id || message.peerId
+    );
     if (!peer_id) {
+      console.log(
+        `⚠️  Не удалось извлечь peer_id из события. peer_id:`,
+        JSON.stringify(message.peer_id ?? message.peerId)
+      );
+      console.log("🔍 Структура message:", {
+        id: message.id,
+        className: message.className,
+        peer_id: message.peer_id,
+        peerId: message.peerId,
+        toId: message.toId,
+        fromId: message.fromId,
+      });
       return;
     }
 
     // Проверяем, есть ли enabled подписка для этого чата
-    const subscriptions = await listSubscriptions(accountId, userId);
-    const subscription = subscriptions.find(
-      s => s.peer_id === peer_id && s.enabled
+    const event = await this.messageProcessor.buildEvent(
+      accountId,
+      userId,
+      peer_id,
+      message
     );
 
-    if (!subscription) {
-      return; // Игнорируем неподключенные чаты
+    if (!event) {
+      return;
     }
 
-    // Выводим в консоль (пока)
-    console.log("\n" + "=".repeat(60));
-    console.log(`📨 НОВОЕ СООБЩЕНИЕ`);
-    console.log("=".repeat(60));
-    console.log(`🔹 Чат: ${subscription.title} (${subscription.peer_type})`);
-    console.log(`🔹 Peer ID: ${peer_id}`);
-    console.log(`🔹 Sender ID: ${message.senderId?.toString() || "unknown"}`);
-    console.log(`🔹 Текст: ${message.text || "(без текста)"}`);
-    console.log(`🔹 Workspace: ${subscription.workspace_id}`);
-    console.log(`🔹 Role: ${subscription.role_id}`);
-    console.log(
-      `🔹 Дата: ${new Date(message.date * 1000).toLocaleString("ru")}`
-    );
-    console.log("=".repeat(60) + "\n");
-
-    // TODO: В будущем здесь будет отправка в LLM и автоответ
-  }
-
-  /**
-   * Извлечь peer_id из объекта Peer
-   */
-  private extractPeerId(peer: any): string | null {
-    if (!peer) return null;
-
-    // PeerUser
-    if (peer.userId) {
-      return peer.userId.toString();
-    }
-
-    // PeerChat
-    if (peer.chatId) {
-      return peer.chatId.toString();
-    }
-
-    // PeerChannel
-    if (peer.channelId) {
-      return peer.channelId.toString();
-    }
-
-    return null;
+    await this.eventSender.send(event);
   }
 
   /**

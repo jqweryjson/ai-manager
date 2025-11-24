@@ -8,6 +8,8 @@ import {
 } from "./handlers/dialogs.js";
 import { handleSubscriptions } from "./handlers/subscriptions.js";
 import { handleGetSubscriptions } from "./handlers/getSubscriptions.js";
+import { handleTelegramEvent } from "./handlers/events.js";
+import { handleSendMessage } from "./handlers/send.js";
 
 export async function telegramUserRoutes(fastify: FastifyInstance) {
   // Авторизация
@@ -61,6 +63,13 @@ export async function telegramUserRoutes(fastify: FastifyInstance) {
     async (request, reply) => handleAllDialogs(fastify, request, reply)
   );
 
+  // Отправка сообщений в Telegram (используется сервером / для тестов)
+  fastify.post(
+    "/tg-user/send",
+    { preHandler: (fastify as any).authenticate },
+    async (request, reply) => handleSendMessage(fastify, request as any, reply)
+  );
+
   // Подписки
   fastify.get(
     "/tg-user/subscriptions",
@@ -74,5 +83,10 @@ export async function telegramUserRoutes(fastify: FastifyInstance) {
     { preHandler: (fastify as any).authenticate },
     async (request, reply) =>
       handleSubscriptions(fastify, request as any, reply)
+  );
+
+  // Внутренние события (без аутентификации - только для Listener)
+  fastify.post("/internal/tg-user/events", async (request, reply) =>
+    handleTelegramEvent(fastify, request, reply)
   );
 }

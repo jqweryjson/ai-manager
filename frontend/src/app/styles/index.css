@@ -34,6 +34,14 @@ body {
   outline-offset: 2px;
 }
 
+:root {
+  --bp-mobile: 768px;
+  /* Примечание: CSS переменные нельзя использовать в @media запросах,
+     поэтому в медиа-запросах используется хардкод 767px.
+     Значение синхронизировано с BREAKPOINTS.mobile в JS (frontend/src/shared/config/breakpoints.ts).
+     При изменении брейкпоинта нужно обновить и JS константу, и все @media (max-width: 767px) в CSS. */
+}
+
 html,
 body,
 #root {
@@ -67,6 +75,34 @@ body {
   background-color: var(--color-scroll-thumb-hover);
 }
 
+.full-sidebar-custom {
+  position: absolute;
+  z-index: 1;
+  & .Sidebar-Window {
+    --sidebar-width: 100%;
+  }
+}
+
+@keyframes appear {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes sheen {
+  0% {
+    left: -150px;
+  }
+  90% {
+    left: -150px;
+  }
+  100% {
+    left: 100%;
+  }
+}
 /* Фирменный фиолетово-розовый brand цвет с glow эффектом */
 .Theme_color_gpnDefault {
   /* --brand-purple: #a855f7;
@@ -83,13 +119,38 @@ body {
   /* --color-bg-default: #9333ea; */
 }
 
-/* ===== RESPONSIVE UTILITIES ===== */
+.Theme {
+  & .Button_view_primary:not(.Button:disabled):after {
+    content: "";
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 100px; /* Adjust as needed */
+    background: linear-gradient(
+      to right,
+      transparent,
+      rgba(255, 255, 255, 0.5),
+      transparent
+    );
+    transform: rotate(45deg); /* Optional: angle the shine */
+    left: -150px; /* Initial off-screen position */
+    animation: sheen 7s linear infinite; /* Apply animation */
+  }
 
-/* Breakpoints */
-:root {
-  --bp-mobile: 768px;
+  @media (max-width: 767px) {
+    .Text_size_l {
+      font-size: 14px;
+    }
+    .Text_size_s {
+      font-size: 12px;
+    }
+    .Text_size_xs {
+      font-size: 10px;
+    }
+  }
 }
 
+/* ===== RESPONSIVE UTILITIES ===== */
 /* Visibility utilities for breakpoints */
 @media (max-width: 767px) {
   .hidden-mobile {
@@ -103,10 +164,10 @@ body {
   }
 }
 
-/* Adaptive spacing for mobile */
+/* Adaptive spacing for mobile 
 @media (max-width: 767px) {
   :root {
-    /* Consta UI использует CSS переменные для spacing */
-    /* Эти переменные переопределяются в теме */
+    /* Consta UI использует CSS переменные для spacing 
+    /* Эти переменные переопределяются в теме 
   }
-}
+}*/

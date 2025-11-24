@@ -1,24 +1,27 @@
 import { useState } from "react";
 import { Button } from "@consta/uikit/Button";
 import { IconLayers } from "@consta/icons/IconLayers";
-import { UploadModal } from "../UploadModal";
+import { DocumentManagementSidebar } from "../DocumentManagementSidebar";
 import { Text } from "@consta/uikit/Text";
 
 interface DocumentManagementPanelProps {
   onDocumentsChange?: () => void;
+  containerSelector?: string;
 }
 
 export const DocumentManagementPanel = ({
   onDocumentsChange,
+  containerSelector,
 }: DocumentManagementPanelProps) => {
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isDocumentManagementSidebarOpen, setIsDocumentManagementSidebarOpen] =
+    useState(false);
 
   const handleOpenUpload = () => {
-    setIsUploadModalOpen(true);
+    setIsDocumentManagementSidebarOpen(true);
   };
 
   const handleCloseUpload = () => {
-    setIsUploadModalOpen(false);
+    setIsDocumentManagementSidebarOpen(false);
     // Вызываем коллбэк если документы изменились
     onDocumentsChange?.();
   };
@@ -42,7 +45,13 @@ export const DocumentManagementPanel = ({
         </Text>
       </div>
 
-      {isUploadModalOpen && <UploadModal isOpen onClose={handleCloseUpload} />}
+      {isDocumentManagementSidebarOpen && (
+        <DocumentManagementSidebar
+          isOpen
+          onClose={handleCloseUpload}
+          containerSelector={containerSelector}
+        />
+      )}
     </>
   );
 };

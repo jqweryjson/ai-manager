@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Layout } from "@consta/uikit/Layout";
-import { Text } from "@consta/uikit/Text";
 import { TelegramIntegrationCard } from "@/features/TelegramIntegration";
 import type { TelegramIntegrationCardProps } from "@/features/TelegramIntegration";
 import "./styles.css";
@@ -33,24 +32,17 @@ export const IntegrationsPage = () => {
 
   return (
     <Layout direction="column" className="integrations-page">
-      <Layout direction="column" style={{ gap: "var(--space-2xs)" }}>
-        <Text size="2xl" weight="bold" view="brand">
-          Интеграции
-        </Text>
-        <Text size="s" view="secondary">
-          Подключайте системы и мессенджеры, чтобы ассистент отвечал
-          пользователям автоматически.
-        </Text>
-      </Layout>
-
       {expandedIntegration ? (
         <div className="integrations-page__expanded">
           <expandedIntegration.component
             key={expandedIntegration.id}
             {...expandedIntegration.props}
             isExpanded={true}
-            onExpand={() => setExpandedIntegrationId(expandedIntegration.id)}
-            onCollapse={() => setExpandedIntegrationId(null)}
+            onExpand={isExpanded =>
+              setExpandedIntegrationId(
+                isExpanded ? expandedIntegration.id : null
+              )
+            }
           />
         </div>
       ) : (
@@ -62,8 +54,9 @@ export const IntegrationsPage = () => {
                 key={integration.id}
                 {...integration.props}
                 isExpanded={false}
-                onExpand={() => setExpandedIntegrationId(integration.id)}
-                onCollapse={() => setExpandedIntegrationId(null)}
+                onExpand={isExpanded =>
+                  setExpandedIntegrationId(isExpanded ? integration.id : null)
+                }
               />
             );
           })}

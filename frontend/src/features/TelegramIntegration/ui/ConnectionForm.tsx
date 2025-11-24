@@ -36,7 +36,9 @@ export const ConnectionForm = ({
     <Layout direction="column" style={{ gap: "var(--space-m)" }}>
       <Button
         label="Получить API ключи"
+        size="s"
         view="secondary"
+        style={{ alignSelf: "flex-end" }}
         onClick={() => {
           window.open(
             "https://my.telegram.org/auth",
@@ -54,6 +56,7 @@ export const ConnectionForm = ({
           label="API ID"
           placeholder="Введите API ID"
           value={apiId}
+          size="s"
           onChange={val => setApiId(val || "")}
           type="number"
         />
@@ -61,6 +64,7 @@ export const ConnectionForm = ({
           label="API Hash"
           placeholder="Введите API Hash"
           value={apiHash}
+          size="s"
           onChange={val => setApiHash(val || "")}
           type="password"
         />
@@ -68,12 +72,15 @@ export const ConnectionForm = ({
           label="Телефон (+79991234567)"
           placeholder="+79991234567"
           value={phone}
+          size="s"
           onChange={val => setPhone(val || "")}
           type="tel"
         />
         <Button
           label={loading ? "Отправка кода..." : "Отправить код"}
           view="primary"
+          size="s"
+          style={{ alignSelf: "flex-end" }}
           disabled={!apiId || !apiHash || !phone || loading}
           onClick={handleStartConnection}
         />

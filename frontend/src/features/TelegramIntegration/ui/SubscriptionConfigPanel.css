@@ -3,26 +3,41 @@
   flex-direction: row;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  justify-content: flex-end;
+  /* min-width: 0; */
 }
 
 .subscription-config-panel__badges {
   display: flex;
   flex-direction: row;
   gap: 4px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.subscription-config-panel__buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 /* Мобильная версия */
 @media (max-width: 768px) {
   .subscription-config-panel {
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-end;
     gap: 6px;
   }
 
   .subscription-config-panel__badges {
-    flex-direction: column;
-    gap: 4px;
+    & .Badge {
+      display: block;
+      max-width: 85px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 }

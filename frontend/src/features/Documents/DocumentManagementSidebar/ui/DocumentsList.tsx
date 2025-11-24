@@ -12,8 +12,17 @@ export const DocumentsList = ({ documents, onDelete }: DocumentsListProps) => {
   if (documents.length === 0) return null;
 
   return (
-    <Layout direction="column" style={{ gap: "var(--space-m)" }}>
-      <Text size="l" weight="semibold" view="primary">
+    <Layout
+      direction="column"
+      style={{ gap: "var(--space-m)" }}
+      className="documents-list"
+    >
+      <Text
+        size="l"
+        weight="semibold"
+        view="primary"
+        className="documents-list__title"
+      >
         Загруженные документы:
       </Text>
 

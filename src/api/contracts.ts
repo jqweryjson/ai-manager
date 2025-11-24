@@ -1,79 +1,134 @@
 /**
- * API Contracts - единый источник истины для типов API
- *
- * Этот файл генерируется из Zod схем и используется на фронтенде.
- * Для синхронизации типов на фронтенд используйте:
- * npm run sync:types
+ * API Contracts - единый источник истины для типов API.
+ * Файл предназначен как для backend, так и для frontend (через npm run sync:types).
+ * Здесь нет зависимостей от Zod-схем, чтобы файл был самодостаточным.
  */
-
-import { z } from "zod";
-import {
-  // Shared
-  PeerTypeSchema,
-  AccountStatusSchema,
-
-  // Request schemas
-  StartConnectionSchema,
-  VerifyCodeSchema,
-  Verify2FASchema,
-  DisconnectSchema,
-  SubscriptionItemInputSchema,
-  SaveSubscriptionsRequestSchema,
-
-  // Response schemas
-  StartConnectionResponseSchema,
-  VerifyResponseSchema,
-  TelegramAccountSchema,
-  StatusResponseSchema,
-  DisconnectResponseSchema,
-  DialogItemSchema,
-  DialogsResponseSchema,
-  ContactsResponseSchema,
-  AllDialogsResponseSchema,
-  SubscriptionItemSchema,
-  GetSubscriptionsResponseSchema,
-  SaveSubscriptionsResponseSchema,
-} from "./telegram-user/schemas.js";
 
 // ============= SHARED TYPES =============
 
-export type PeerType = z.infer<typeof PeerTypeSchema>;
-export type AccountStatus = z.infer<typeof AccountStatusSchema>;
+export type PeerType = "user" | "chat" | "channel";
+
+export type AccountStatus =
+  | "pending_code"
+  | "pending_2fa"
+  | "connected"
+  | "flood_wait";
 
 // ============= REQUEST TYPES =============
 
-export type StartConnectionRequest = z.input<typeof StartConnectionSchema>;
-export type VerifyCodeRequest = z.input<typeof VerifyCodeSchema>;
-export type Verify2FARequest = z.input<typeof Verify2FASchema>;
-export type DisconnectRequest = z.input<typeof DisconnectSchema>;
+export interface StartConnectionRequest {
+  api_id: string;
+  api_hash: string;
+  phone: string;
+}
 
-export type SubscriptionItemInput = z.infer<typeof SubscriptionItemInputSchema>;
-export type SaveSubscriptionsRequest = z.infer<
-  typeof SaveSubscriptionsRequestSchema
->;
+export interface VerifyCodeRequest {
+  account_id: string;
+  code: string;
+}
+
+export interface Verify2FARequest {
+  account_id: string;
+  password: string;
+}
+
+export interface DisconnectRequest {
+  account_id: string;
+}
+
+export interface SubscriptionItemInput {
+  peer_id: string;
+  peer_type: PeerType;
+  title: string;
+  enabled?: boolean;
+  workspace_id?: string | null;
+  role_id?: string | null;
+  mention_only?: boolean;
+}
+
+export interface SaveSubscriptionsRequest {
+  account_id: string;
+  items: SubscriptionItemInput[];
+}
 
 // ============= RESPONSE TYPES =============
 
-export type StartConnectionResponse = z.infer<
-  typeof StartConnectionResponseSchema
->;
-export type VerifyResponse = z.infer<typeof VerifyResponseSchema>;
-export type TelegramAccount = z.infer<typeof TelegramAccountSchema>;
-export type StatusResponse = z.infer<typeof StatusResponseSchema>;
-export type DisconnectResponse = z.infer<typeof DisconnectResponseSchema>;
+export interface StartConnectionResponse {
+  account_id: string;
+  phone_code_hash: string;
+}
 
-export type DialogItem = z.infer<typeof DialogItemSchema>;
-export type DialogsResponse = z.infer<typeof DialogsResponseSchema>;
-export type ContactsResponse = z.infer<typeof ContactsResponseSchema>;
-export type AllDialogsResponse = z.infer<typeof AllDialogsResponseSchema>;
+export interface VerifyResponse {
+  success?: boolean;
+  requires_2fa?: boolean;
+  account_id?: string;
+}
 
-export type SubscriptionItem = z.infer<typeof SubscriptionItemSchema>;
-export type GetSubscriptionsResponse = z.infer<
-  typeof GetSubscriptionsResponseSchema
->;
-export type SaveSubscriptionsResponse = z.infer<
-  typeof SaveSubscriptionsResponseSchema
->;
+export interface TelegramAccount {
+  id: string;
+  phone: string | null;
+  status: AccountStatus;
+  flood_wait_until: string | null;
+  created_at: string;
+}
+
+export interface StatusResponse {
+  accounts: TelegramAccount[];
+}
+
+export interface DisconnectResponse {
+  success: boolean;
+}
+
+export interface DialogItem {
+  peer_id: string;
+  peer_type: PeerType;
+  title: string;
+  unread_count: number;
+}
+
+export interface DialogsResponse {
+  account_id: string;
+  dialogs: DialogItem[];
+  has_more: boolean;
+  next_offset_date?: string;
+}
+
+export interface ContactsResponse {
+  account_id: string;
+  dialogs: DialogItem[];
+}
+
+export interface AllDialogsResponse {
+  account_id: string;
+  dialogs: DialogItem[];
+}
+
+export interface SubscriptionItem {
+  peer_id: string;
+  peer_type: PeerType;
+  title: string;
+  enabled: boolean;
+  workspace_id: string | null;
+  role_id: string | null;
+  mention_only: boolean;
+}
+
+export interface GetSubscriptionsResponse {
+  subscriptions: SubscriptionItem[];
+}
+
+export interface SaveSubscriptionsResponse {
+  success: boolean;
+  subscriptions: Array<
+    SubscriptionItem & {
+      id: string;
+      telegram_account_id: string;
+      created_at: string;
+      updated_at: string;
+    }
+  >;
+}
 
 // ============= HELPER TYPES =============
 

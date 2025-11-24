@@ -1,13 +1,17 @@
 import React from "react";
 import { Layout } from "@consta/uikit/Layout";
 import { Text } from "@consta/uikit/Text";
+import { Badge } from "@consta/uikit/Badge";
+
+import type { IntegrationStatusLabel } from "@/features/TelegramIntegration/hooks/useTelegramUserStatus";
 import "./IntegrationCardHeader.css";
 
 interface IntegrationCardHeaderProps {
   icon?: React.ReactNode;
   title: string;
   subtitle?: string;
-  statusLabel?: string;
+  statusLabel?: IntegrationStatusLabel;
+  isExpanded?: boolean;
 }
 
 export const IntegrationCardHeader: React.FC<IntegrationCardHeaderProps> = ({
@@ -25,19 +29,23 @@ export const IntegrationCardHeader: React.FC<IntegrationCardHeaderProps> = ({
       {icon ? (
         <div className="integration-card-header__icon">{icon}</div>
       ) : null}
-      <Layout direction="column" style={{ gap: "var(--space-3xs)" }}>
+
+      <Layout direction="column" className="integration-card-header__content">
         <Text size="l" weight="semibold" view="brand">
           {title}
         </Text>
         {subtitle ? (
-          <Text size="s" view="secondary">
+          <Text size="s" view="secondary" className="hidden-mobile">
             {subtitle}
           </Text>
         ) : null}
         {statusLabel ? (
-          <Text size="xs" view="ghost">
-            Статус: {statusLabel}
-          </Text>
+          <Badge
+            size="xs"
+            status={statusLabel.status}
+            label={statusLabel.label}
+            style={{ alignSelf: "flex-start" }}
+          />
         ) : null}
       </Layout>
     </Layout>
