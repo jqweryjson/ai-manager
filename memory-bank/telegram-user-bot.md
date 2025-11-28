@@ -1,5 +1,44 @@
 # Telegram User Bot (MTProto) — чекпоинты
 
+## Архитектура системы
+
+**Компоненты:**
+
+1. **Backend API** (можно масштабировать)
+   - REST endpoints для фронтенда
+   - Генерация LLM ответов
+   - Публикация задач в RabbitMQ
+   - Управление подписками в БД
+
+2. **Telegram Service** (1 Docker контейнер, можно масштабировать)
+   - **Listener**: Слушает сообщения от Telegram, публикует события в RabbitMQ
+   - **Sender**: Читает задачи из RabbitMQ, отправляет сообщения в Telegram
+   - Для 100 пользователей: 1 процесс, 100 TelegramClient объектов внутри
+
+3. **RabbitMQ** (инфраструктура)
+   - Очередь `telegram.events`: события от listener'а
+   - Очередь `telegram.send_message`: задачи на отправку сообщений
+
+**Flow для автоответов:**
+
+```
+Telegram → Listener → RabbitMQ (telegram.events) → Backend LLM Worker →
+RabbitMQ (telegram.send_message) → Sender → Telegram
+```
+
+**Масштабирование:**
+
+- Listener: 1 инстанс (справляется с 100+ аккаунтами)
+- Backend API: можно запустить несколько (для LLM генерации)
+- Sender: можно запустить несколько (для отправки)
+
+**FLOOD_WAIT обработка:**
+
+- Поле `next_allowed_at` в `telegram_subscriptions` хранит время, когда можно отправить следующее сообщение
+- Перед генерацией ответа проверяем `next_allowed_at` (чтобы не тратить LLM токены)
+- При FLOOD_WAIT парсим время и обновляем `next_allowed_at`
+- Задачи requeue с задержкой до `next_allowed_at`
+
 - [ ] 0. Секреты/окружение
   - [ ] BACKEND_SECRET (ключ для шифрования AES‑GCM)
   - [ ] VITE_API_URL (фронт → API)
@@ -404,38 +443,77 @@
   - [ ] Диалоги грузятся; подписки сохраняются
   - [ ] UI адаптивный; ошибки обработаны; секреты защищены
   - [ ] Статус flood_wait корректно отображается пользователю
+  - [ ] Очередь RabbitMQ работает; задачи обрабатываются корректно
+  - [ ] FLOOD_WAIT обрабатывается; `next_allowed_at` обновляется
+  - [ ] Rate limiting работает; нет лишних отправок
+  - [ ] Система масштабируется: можно запустить несколько worker'ов
+  - [ ] Мониторинг: логи и метрики работают
 
-### План: Очередь автоответов + flood wait (RabbitMQ)
-
-1. **Инфраструктура**
-   - Поднимаем RabbitMQ (отдельный docker-сервис) + общий модуль очередей.
-   - Добавляем сервис `telegram-sender` (node worker), который тянет задачи `telegram.sendMessage`.
-   - Архитектура универсальная: тип задачи включает `integration` (`telegram`, `whatsapp`, ...).
-
-2. **Формат задачи**
-   - `{ integration: "telegram", type: "sendMessage", payload: { account_id, user_id, peer_id, peer_type, access_hash, workspace_id, role_id, text, requested_at } }`
-   - Доп. метаданные: `attempt`, `available_at` (timestamp для отложенной попытки).
-
-3. **Flood wait хранение**
-   - В `telegram_subscriptions` добавляем `next_allowed_at TIMESTAMPTZ`.
-   - Перед генерацией ответа/отправкой проверяем `next_allowed_at`: если в будущем — пропускаем генерацию и логируем причину.
-   - В `sendTelegramMessage` ловим `FLOOD_WAIT_X`, парсим X → `next_allowed_at = now + X`, задачу возвращаем в очередь с `available_at`.
-
-4. **Rate limiting**
-   - Redis-ключи вида `tg:<account_id>:last_sent` и `tg:<account_id>:<peer_id>:last_sent`.
-   - Базовые лимиты: на чат ≥2-3с, на аккаунт ≥1 сообщение/сек (настраиваемо).
-   - При превышении лимита — перезаписываем `available_at` и повторно публикуем задачу.
-
-5. **Пайплайн**
-   - Listener → генерирует событие → backend (`handleTelegramEvent`) → если чат доступен, генерируем ответ и публикуем задачу в очередь.
-   - Sender → достаёт задачу, проверяет `next_allowed_at` и лимиты → отправляет в Telegram → успех → обновляет `next_allowed_at = now + baseDelay`.
-   - FLOOD_WAIT → сохраняем `next_allowed_at`, увеличиваем `attempt`, requeue с задержкой.
-
-6. **UI/Monitoring**
-   - API `/api/tg-user/subscriptions` возвращает `next_allowed_at` и состояние очереди.
-   - В интерфейсе показываем «Ожидание Telegram до HH:MM».
-   - Метрики: количество задач в очереди, количество FLOOD_WAIT, успешные отправки, пропущенные ответы.
-
-7. **Расширение на другие интеграции**
-   - Общий модуль очередей + rate limiter → Telegram первый клиент.
-   - Новая интеграция добавляет свой sender, но использует ту же RabbitMQ + Redis.
+  - [ ] **Итерация 9: Очередь автоответов + обработка FLOOD_WAIT (RabbitMQ)**
+    - [ ] **Проблема**: При 100 одновременных сообщениях система генерирует 100 LLM ответов одновременно и пытается отправить их все сразу, что приводит к FLOOD_WAIT и трате токенов впустую.
+    - [ ] **Решение**: RabbitMQ очередь + проверка `next_allowed_at` перед генерацией ответа + rate limiting.
+    - [ ] **Архитектура**:
+      - **Backend API**: REST endpoints, генерация LLM ответов, публикация задач в RabbitMQ
+      - **Telegram Service** (1 Docker контейнер): Listener (слушает сообщения) + Sender (отправляет через RabbitMQ)
+      - **RabbitMQ**: Очередь событий (`telegram.events`) и очередь отправки (`telegram.send_message`)
+      - **Масштабирование**: Можно запустить несколько `telegram-service` для масштабирования sender'ов
+    - [ ] **Шаг 1: Инфраструктура RabbitMQ**
+      - [ ] Добавить `rabbitmq` в `docker-compose.yml`
+      - [ ] Создать модуль `src/core/rabbitmq.ts` для подключения к RabbitMQ
+      - [ ] Создать модуль `src/core/queue-publisher.ts` для публикации задач
+      - [ ] Exchange: `telegram_events` (direct)
+      - [ ] Queues: `telegram.events` (события от listener), `telegram.send_message` (задачи на отправку)
+    - [ ] **Шаг 2: БД - добавить `next_allowed_at`**
+      - [ ] Миграция: добавить `next_allowed_at TIMESTAMP WITH TIME ZONE NULL` в `telegram_subscriptions`
+      - [ ] Индекс: `CREATE INDEX idx_telegram_subscriptions_next_allowed_at ON telegram_subscriptions(next_allowed_at) WHERE next_allowed_at IS NOT NULL;`
+      - [ ] Обновить TypeScript типы в `telegram-account-postgres.ts`
+      - [ ] Добавить функцию `updateNextAllowedAt(accountId, peerId, seconds)` для обновления времени блокировки
+    - [ ] **Шаг 3: Формат сообщений RabbitMQ**
+      - [ ] Формат задачи для `telegram.events`: `{ type: "send_message", integration: "telegram", account_id, user_id, peer_id, peer_type, access_hash, workspace_id, role_id, message_text }`
+      - [ ] Формат задачи для `telegram.send_message`: `{ type: "send_message", integration: "telegram", account_id, user_id, peer_id, peer_type, access_hash, text, priority, attempts, max_attempts }`
+      - [ ] Метаданные: `attempts`, `max_attempts` (для retry), `priority` (1 = normal, 2 = high)
+    - [ ] **Шаг 4: Обновить `handleTelegramEvent`**
+      - [ ] Добавить проверку `next_allowed_at` перед генерацией ответа (чтобы не тратить LLM токены)
+      - [ ] Если `next_allowed_at > NOW()` → пропустить генерацию, залогировать причину
+      - [ ] Заменить прямой вызов `sendTelegramMessage` на публикацию задачи в RabbitMQ (`telegram.send_message`)
+      - [ ] Добавить логирование публикации задач
+    - [ ] **Шаг 5: Обновить `sendTelegramMessage`**
+      - [ ] Добавить парсинг FLOOD_WAIT из ошибки (регулярное выражение для извлечения времени)
+      - [ ] Возвращать структурированную ошибку с `floodWaitSeconds: number | null`
+      - [ ] Обновить логирование для отладки
+    - [ ] **Шаг 6: Создать Telegram Service (Listener + Sender)**
+      - [ ] Обновить `src/workers/telegram-listener.ts`: вместо POST на Backend API → публикация в RabbitMQ (`telegram.events`)
+      - [ ] Создать `src/workers/telegram-sender.ts`:
+        - [ ] Consumer для `telegram.send_message` (использует `amqp-connection-manager` + `amqplib`)
+        - [ ] Проверка `next_allowed_at` в БД перед отправкой
+        - [ ] Rate limiting: проверка базовых лимитов (1 msg/sec на аккаунт, 1 msg/3sec на чат)
+        - [ ] Вызов `sendTelegramMessage` из `telegram-send.ts`
+        - [ ] При успехе: обновить `next_allowed_at = NOW() + 3 секунды` (базовая задержка)
+        - [ ] При FLOOD_WAIT: парсить время, обновить `next_allowed_at`, requeue с задержкой
+        - [ ] При другой ошибке: retry (до `max_attempts`), затем DLQ или логирование
+      - [ ] Обновить `docker-compose.yml`: переименовать `telegram-listener` → `telegram-service`, добавить запуск sender'а
+    - [ ] **Шаг 7: Backend API Worker для LLM генерации**
+      - [ ] Создать `src/workers/telegram-llm-worker.ts`:
+        - [ ] Consumer для `telegram.events` (события от listener)
+        - [ ] Проверка `next_allowed_at` перед генерацией
+        - [ ] Генерация LLM ответа через `generateChatResponse`
+        - [ ] Публикация задачи в `telegram.send_message` с готовым текстом ответа
+        - [ ] Ограничение количества одновременных генераций (например, 10 worker'ов = 10 одновременных генераций)
+      - [ ] Добавить в `docker-compose.yml` или запускать как часть Backend API
+    - [ ] **Шаг 8: Rate Limiting (опционально, для будущего)**
+      - [ ] Redis ключи: `tg:<account_id>:last_sent` (timestamp последней отправки на аккаунт)
+      - [ ] Redis ключи: `tg:<account_id>:<peer_id>:last_sent` (timestamp последней отправки в чат)
+      - [ ] Базовые лимиты: на чат ≥2-3 секунды, на аккаунт ≥1 сообщение/сек
+      - [ ] При превышении лимита → обновить `available_at` в задаче, requeue
+    - [ ] **Шаг 9: UI - отображение статуса FLOOD_WAIT**
+      - [ ] Обновить `GET /api/tg-user/subscriptions`: добавить `next_allowed_at` в ответ
+      - [ ] Фронтенд: показывать статус "Ожидание Telegram до HH:MM" если `next_allowed_at > NOW()`
+      - [ ] Добавить индикатор в UI (badge или текст) для заблокированных чатов
+    - [ ] **Шаг 10: Мониторинг и метрики**
+      - [ ] Логирование: количество задач в очереди, количество FLOOD_WAIT, успешные отправки
+      - [ ] Метрики: пропущенные ответы (из-за FLOOD_WAIT), среднее время в очереди
+      - [ ] Алерты: если очередь растёт слишком быстро, если много FLOOD_WAIT
+    - [ ] **Шаг 11: Расширение на другие интеграции (будущее)**
+      - [ ] Общий модуль очередей (`src/core/queue-publisher.ts`) с поддержкой `integration` типа
+      - [ ] RabbitMQ routing key: `{integration}.{type}` (например, `telegram.send_message`, `whatsapp.send_message`)
+      - [ ] Новая интеграция добавляет свой sender, но использует ту же RabbitMQ инфраструктуру
