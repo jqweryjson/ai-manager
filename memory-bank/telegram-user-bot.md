@@ -404,3 +404,38 @@
   - [ ] Диалоги грузятся; подписки сохраняются
   - [ ] UI адаптивный; ошибки обработаны; секреты защищены
   - [ ] Статус flood_wait корректно отображается пользователю
+
+### План: Очередь автоответов + flood wait (RabbitMQ)
+
+1. **Инфраструктура**
+   - Поднимаем RabbitMQ (отдельный docker-сервис) + общий модуль очередей.
+   - Добавляем сервис `telegram-sender` (node worker), который тянет задачи `telegram.sendMessage`.
+   - Архитектура универсальная: тип задачи включает `integration` (`telegram`, `whatsapp`, ...).
+
+2. **Формат задачи**
+   - `{ integration: "telegram", type: "sendMessage", payload: { account_id, user_id, peer_id, peer_type, access_hash, workspace_id, role_id, text, requested_at } }`
+   - Доп. метаданные: `attempt`, `available_at` (timestamp для отложенной попытки).
+
+3. **Flood wait хранение**
+   - В `telegram_subscriptions` добавляем `next_allowed_at TIMESTAMPTZ`.
+   - Перед генерацией ответа/отправкой проверяем `next_allowed_at`: если в будущем — пропускаем генерацию и логируем причину.
+   - В `sendTelegramMessage` ловим `FLOOD_WAIT_X`, парсим X → `next_allowed_at = now + X`, задачу возвращаем в очередь с `available_at`.
+
+4. **Rate limiting**
+   - Redis-ключи вида `tg:<account_id>:last_sent` и `tg:<account_id>:<peer_id>:last_sent`.
+   - Базовые лимиты: на чат ≥2-3с, на аккаунт ≥1 сообщение/сек (настраиваемо).
+   - При превышении лимита — перезаписываем `available_at` и повторно публикуем задачу.
+
+5. **Пайплайн**
+   - Listener → генерирует событие → backend (`handleTelegramEvent`) → если чат доступен, генерируем ответ и публикуем задачу в очередь.
+   - Sender → достаёт задачу, проверяет `next_allowed_at` и лимиты → отправляет в Telegram → успех → обновляет `next_allowed_at = now + baseDelay`.
+   - FLOOD_WAIT → сохраняем `next_allowed_at`, увеличиваем `attempt`, requeue с задержкой.
+
+6. **UI/Monitoring**
+   - API `/api/tg-user/subscriptions` возвращает `next_allowed_at` и состояние очереди.
+   - В интерфейсе показываем «Ожидание Telegram до HH:MM».
+   - Метрики: количество задач в очереди, количество FLOOD_WAIT, успешные отправки, пропущенные ответы.
+
+7. **Расширение на другие интеграции**
+   - Общий модуль очередей + rate limiter → Telegram первый клиент.
+   - Новая интеграция добавляет свой sender, но использует ту же RabbitMQ + Redis.

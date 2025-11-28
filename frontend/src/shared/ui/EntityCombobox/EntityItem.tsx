@@ -51,7 +51,7 @@ export function EntityItem<T extends BaseEntity>({
         gap: "var(--space-xs)",
       }}
     >
-      <Text view="primary" size="s" style={{ flex: 1 }}>
+      <Text view="primary" size="xs" truncate style={{ flex: 1 }}>
         {item.name}
       </Text>
 

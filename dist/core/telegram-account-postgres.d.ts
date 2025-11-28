@@ -53,6 +53,8 @@ export interface TelegramSubscription {
     enabled: boolean;
     workspace_id: string | null;
     role_id: string | null;
+    mention_only: boolean;
+    access_hash: string | null;
     created_at: Date;
     updated_at: Date;
 }
@@ -61,8 +63,10 @@ export declare function upsertSubscriptions(accountId: string, userId: string, i
     peer_id: string;
     peer_type: "user" | "chat" | "channel";
     title: string;
-    enabled?: boolean;
+    enabled?: boolean | null;
     workspace_id?: string | null;
     role_id?: string | null;
+    mention_only?: boolean | null;
+    access_hash?: string | null;
 }>): Promise<void>;
 //# sourceMappingURL=telegram-account-postgres.d.ts.map

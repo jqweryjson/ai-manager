@@ -5,18 +5,16 @@ import { Api } from "telegram/tl";
 // Это нормальное поведение для long-polling, но не должно засорять консоль
 const originalConsoleError = console.error;
 console.error = (...args) => {
-  // Проверяем, это ли ошибка TIMEOUT из updates.js
-  const firstArg = args[0];
-  if (
-    firstArg instanceof Error &&
-    firstArg.message === "TIMEOUT" &&
-    firstArg.stack?.includes("telegram/client/updates.js")
-  ) {
-    // Игнорируем эту ошибку
-    return;
-  }
-  // Все остальные ошибки пропускаем к оригинальному console.error
-  originalConsoleError.apply(console, args);
+    // Проверяем, это ли ошибка TIMEOUT из updates.js
+    const firstArg = args[0];
+    if (firstArg instanceof Error &&
+        firstArg.message === "TIMEOUT" &&
+        firstArg.stack?.includes("telegram/client/updates.js")) {
+        // Игнорируем эту ошибку
+        return;
+    }
+    // Все остальные ошибки пропускаем к оригинальному console.error
+    originalConsoleError.apply(console, args);
 };
 /**
  * Создаёт новый TelegramClient
@@ -26,44 +24,43 @@ console.error = (...args) => {
  * @returns TelegramClient
  */
 export function createClient(apiId, apiHash, sessionString) {
-  const session = new StringSession(sessionString || "");
-  const client = new TelegramClient(session, apiId, apiHash, {
-    connectionRetries: 5,
-    // Отключаем автоматические обновления (update loop)
-    // т.к. нам не нужны real-time обновления для stateless API
-    useWSS: false,
-    timeout: 10, // 10 секунд таймаут для запросов
-  });
-  // Полностью отключаем update loop для stateless операций
-  // Это предотвращает бесконечные TIMEOUT ошибки в консоли
-  client.updates = {
-    isConnected: () => false,
-    _updateLoop: () => Promise.resolve(),
-  };
-  return client;
+    const session = new StringSession(sessionString || "");
+    const client = new TelegramClient(session, apiId, apiHash, {
+        connectionRetries: 5,
+        // Отключаем автоматические обновления (update loop)
+        // т.к. нам не нужны real-time обновления для stateless API
+        useWSS: false,
+        timeout: 10, // 10 секунд таймаут для запросов
+    });
+    // Полностью отключаем update loop для stateless операций
+    // Это предотвращает бесконечные TIMEOUT ошибки в консоли
+    client.updates = {
+        isConnected: () => false,
+        _updateLoop: () => Promise.resolve(),
+    };
+    return client;
 }
 /**
  * Безопасно отключает клиент, игнорируя ошибки таймаута из update loop
  * @param client - TelegramClient
  */
 async function safeDisconnect(client) {
-  try {
-    if (client.connected) {
-      await client.disconnect();
+    try {
+        if (client.connected) {
+            await client.disconnect();
+        }
     }
-  } catch (error) {
-    // Игнорируем ошибки таймаута из update loop - это нормальное поведение GramJS
-    // при быстром отключении после короткой операции
-    if (
-      error?.message?.includes("TIMEOUT") ||
-      error?.message?.includes("update")
-    ) {
-      // Это не критичная ошибка, просто логируем на уровне debug
-      return;
+    catch (error) {
+        // Игнорируем ошибки таймаута из update loop - это нормальное поведение GramJS
+        // при быстром отключении после короткой операции
+        if (error?.message?.includes("TIMEOUT") ||
+            error?.message?.includes("update")) {
+            // Это не критичная ошибка, просто логируем на уровне debug
+            return;
+        }
+        // Пробрасываем другие ошибки
+        throw error;
     }
-    // Пробрасываем другие ошибки
-    throw error;
-  }
 }
 /**
  * Отправляет код авторизации на телефон
@@ -72,33 +69,31 @@ async function safeDisconnect(client) {
  * @returns phoneCodeHash для последующей авторизации
  */
 export async function sendCode(client, phone) {
-  try {
-    // Подключаемся, если еще не подключены
-    if (!client.connected) {
-      await client.connect();
+    try {
+        // Подключаемся, если еще не подключены
+        if (!client.connected) {
+            await client.connect();
+        }
+        const result = await client.invoke(new Api.auth.SendCode({
+            phoneNumber: phone,
+            apiId: client.apiId,
+            apiHash: client.apiHash,
+            settings: new Api.CodeSettings({}),
+        }));
+        // result может быть SentCode или SentCodeSuccess
+        if (result instanceof Api.auth.SentCode) {
+            return result.phoneCodeHash;
+        }
+        // Если это SentCodeSuccess, значит уже авторизован
+        throw new Error("Already authorized");
     }
-    const result = await client.invoke(
-      new Api.auth.SendCode({
-        phoneNumber: phone,
-        apiId: client.apiId,
-        apiHash: client.apiHash,
-        settings: new Api.CodeSettings({}),
-      })
-    );
-    // result может быть SentCode или SentCodeSuccess
-    if (result instanceof Api.auth.SentCode) {
-      return result.phoneCodeHash;
+    catch (error) {
+        throw new Error(`Failed to send code: ${error instanceof Error ? error.message : String(error)}`);
     }
-    // Если это SentCodeSuccess, значит уже авторизован
-    throw new Error("Already authorized");
-  } catch (error) {
-    throw new Error(
-      `Failed to send code: ${error instanceof Error ? error.message : String(error)}`
-    );
-  } finally {
-    // Всегда отключаемся после операции
-    await safeDisconnect(client);
-  }
+    finally {
+        // Всегда отключаемся после операции
+        await safeDisconnect(client);
+    }
 }
 /**
  * Авторизуется по коду
@@ -109,34 +104,30 @@ export async function sendCode(client, phone) {
  * @returns результат авторизации
  */
 export async function signIn(client, phone, code, phoneCodeHash) {
-  try {
-    // Подключаемся, если еще не подключены
-    if (!client.connected) {
-      await client.connect();
+    try {
+        // Подключаемся, если еще не подключены
+        if (!client.connected) {
+            await client.connect();
+        }
+        await client.invoke(new Api.auth.SignIn({
+            phoneNumber: phone,
+            phoneCodeHash,
+            phoneCode: code,
+        }));
+        return { success: true, requires2FA: false };
     }
-    await client.invoke(
-      new Api.auth.SignIn({
-        phoneNumber: phone,
-        phoneCodeHash,
-        phoneCode: code,
-      })
-    );
-    return { success: true, requires2FA: false };
-  } catch (error) {
-    // Проверяем, требуется ли 2FA
-    if (
-      error?.errorMessage === "SESSION_PASSWORD_NEEDED" ||
-      error?.code === 401
-    ) {
-      return { success: false, requires2FA: true };
+    catch (error) {
+        // Проверяем, требуется ли 2FA
+        if (error?.errorMessage === "SESSION_PASSWORD_NEEDED" ||
+            error?.code === 401) {
+            return { success: false, requires2FA: true };
+        }
+        throw new Error(`Failed to sign in: ${error instanceof Error ? error.message : String(error)}`);
     }
-    throw new Error(
-      `Failed to sign in: ${error instanceof Error ? error.message : String(error)}`
-    );
-  } finally {
-    // Всегда отключаемся после операции
-    await safeDisconnect(client);
-  }
+    finally {
+        // Всегда отключаемся после операции
+        await safeDisconnect(client);
+    }
 }
 /**
  * Завершает авторизацию с 2FA паролем
@@ -144,43 +135,42 @@ export async function signIn(client, phone, code, phoneCodeHash) {
  * @param password - пароль 2FA
  */
 export async function signInWithPassword(client, password) {
-  try {
-    // Подключаемся, если еще не подключены
-    if (!client.connected) {
-      await client.connect();
-    }
-    // Получаем информацию о пароле для вычисления SRP
-    const passwordInfo = await client.invoke(new Api.account.GetPassword());
-    if (!passwordInfo) {
-      throw new Error("Password info not available");
-    }
-    // Используем встроенный метод gramjs для вычисления SRP
-    // gramjs имеет встроенную функцию для работы с паролями
-    const result = await client.invoke(
-      new Api.auth.CheckPassword({
-        password: await client.checkPassword(password, passwordInfo),
-      })
-    );
-    // Если успешно, сессия уже обновлена в клиенте
-    return;
-  } catch (error) {
-    // Fallback: пробуем использовать встроенный метод если доступен
-    if (typeof client.checkPassword === "function") {
-      try {
+    try {
+        // Подключаемся, если еще не подключены
+        if (!client.connected) {
+            await client.connect();
+        }
+        // Получаем информацию о пароле для вычисления SRP
         const passwordInfo = await client.invoke(new Api.account.GetPassword());
-        await client.checkPassword(password, passwordInfo);
+        if (!passwordInfo) {
+            throw new Error("Password info not available");
+        }
+        // Используем встроенный метод gramjs для вычисления SRP
+        // gramjs имеет встроенную функцию для работы с паролями
+        const result = await client.invoke(new Api.auth.CheckPassword({
+            password: await client.checkPassword(password, passwordInfo),
+        }));
+        // Если успешно, сессия уже обновлена в клиенте
         return;
-      } catch (fallbackError) {
-        // Игнорируем и пробрасываем оригинальную ошибку
-      }
     }
-    throw new Error(
-      `Failed to sign in with password: ${error instanceof Error ? error.message : String(error)}`
-    );
-  } finally {
-    // Всегда отключаемся после операции
-    await safeDisconnect(client);
-  }
+    catch (error) {
+        // Fallback: пробуем использовать встроенный метод если доступен
+        if (typeof client.checkPassword === "function") {
+            try {
+                const passwordInfo = await client.invoke(new Api.account.GetPassword());
+                await client.checkPassword(password, passwordInfo);
+                return;
+            }
+            catch (fallbackError) {
+                // Игнорируем и пробрасываем оригинальную ошибку
+            }
+        }
+        throw new Error(`Failed to sign in with password: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    finally {
+        // Всегда отключаемся после операции
+        await safeDisconnect(client);
+    }
 }
 /**
  * Получает строку сессии для сохранения
@@ -188,10 +178,10 @@ export async function signInWithPassword(client, password) {
  * @returns строка сессии
  */
 export function getSessionString(client) {
-  if (client.session instanceof StringSession) {
-    return client.session.save();
-  }
-  throw new Error("Session is not a StringSession");
+    if (client.session instanceof StringSession) {
+        return client.session.save();
+    }
+    throw new Error("Session is not a StringSession");
 }
 /**
  * Восстанавливает клиент из строки сессии
@@ -201,167 +191,181 @@ export function getSessionString(client) {
  * @returns TelegramClient
  */
 export function restoreSession(sessionString, apiId, apiHash) {
-  return createClient(apiId, apiHash, sessionString);
+    return createClient(apiId, apiHash, sessionString);
 }
 /**
  * Преобразует диалог GramJS в DialogSummary
  * @param d - объект диалога с entity или сам entity
  */
 function parseDialog(d) {
-  try {
-    // Если d уже entity (из SearchGlobal), используем его напрямую
-    const entity = d.entity || d;
-    const title = d.title ?? entity?.title ?? entity?.firstName ?? "Unknown";
-    const unread_сount = d.unread_сount ?? 0;
-    let peer_type = "chat";
-    let peerIdStr = "";
-    const entityType =
-      entity?.className || entity?.constructor?.name || entity?._;
-    if (entityType === "User" || entity?._ === "User") {
-      peer_type = "user";
-      peerIdStr = String(entity.id);
-    } else if (entityType === "Channel" || entity?._ === "Channel") {
-      if (entity?.megagroup) {
-        peer_type = "chat"; // Супергруппа = чат
-      } else {
-        peer_type = "channel"; // Обычный канал
-      }
-      peerIdStr = String(entity.id);
-    } else if (entityType === "Chat" || entity?._ === "Chat") {
-      peer_type = "chat";
-      peerIdStr = String(entity.id);
-    } else if (typeof entity?.id !== "undefined") {
-      peerIdStr = String(entity.id);
+    try {
+        // Если d уже entity (из SearchGlobal), используем его напрямую
+        const entity = d.entity || d;
+        const title = d.title ?? entity?.title ?? entity?.firstName ?? "Unknown";
+        const unread_сount = d.unread_сount ?? 0;
+        let peer_type = "chat";
+        let peerIdStr = "";
+        let accessHash = null;
+        const entityType = entity?.className || entity?.constructor?.name || entity?._;
+        if (entityType === "User" || entity?._ === "User") {
+            peer_type = "user";
+            peerIdStr = String(entity.id);
+            if (typeof entity.accessHash !== "undefined") {
+                accessHash = String(entity.accessHash);
+            }
+        }
+        else if (entityType === "Channel" || entity?._ === "Channel") {
+            if (entity?.megagroup) {
+                peer_type = "chat"; // Супергруппа = чат
+            }
+            else {
+                peer_type = "channel"; // Обычный канал
+            }
+            peerIdStr = String(entity.id);
+            if (typeof entity.accessHash !== "undefined") {
+                accessHash = String(entity.accessHash);
+            }
+        }
+        else if (entityType === "Chat" || entity?._ === "Chat") {
+            peer_type = "chat";
+            peerIdStr = String(entity.id);
+        }
+        else if (typeof entity?.id !== "undefined") {
+            peerIdStr = String(entity.id);
+        }
+        if (peerIdStr) {
+            return {
+                peer_id: peerIdStr,
+                peer_type,
+                title,
+                unread_count: unread_сount,
+                access_hash: accessHash,
+            };
+        }
+        return null;
     }
-    if (peerIdStr) {
-      return {
-        peer_id: peerIdStr,
-        peer_type,
-        title,
-        unread_сount,
-      };
+    catch {
+        return null;
     }
-    return null;
-  } catch {
-    return null;
-  }
 }
 /**
  * Загружает список диалогов (личные, группы, каналы) с пагинацией
  * Возвращает упрощённое представление для UI.
  */
 export async function getDialogsSummary(client, limit = 50, offsetDate) {
-  try {
-    if (!client.connected) {
-      await client.connect();
-    }
-    // GramJS ожидает offsetDate как число (Unix timestamp в секундах), а не Date
-    const offsetDateSeconds = offsetDate
-      ? Math.floor(offsetDate.getTime() / 1000)
-      : undefined;
-    const dialogs = await client.getDialogs({
-      limit,
-      offsetDate: offsetDateSeconds,
-    });
-    if (!Array.isArray(dialogs)) {
-      return { dialogs: [], hasMore: false };
-    }
-    const result = [];
-    let lastDate;
-    for (const d of dialogs) {
-      const parsed = parseDialog(d);
-      if (parsed) {
-        result.push(parsed);
-        // Сохраняем дату последнего сообщения для пагинации
-        if (d.date) {
-          // Преобразуем d.date в Date, если это необходимо
-          let dateObj;
-          if (d.date instanceof Date) {
-            dateObj = d.date;
-          } else if (typeof d.date === "number") {
-            // Timestamp в секундах (Telegram использует Unix timestamp)
-            dateObj = new Date(d.date * 1000);
-          } else if (typeof d.date === "bigint") {
-            dateObj = new Date(Number(d.date) * 1000);
-          } else {
-            // Пробуем преобразовать через конструктор Date
-            dateObj = new Date(d.date);
-          }
-          if (!isNaN(dateObj.getTime()) && (!lastDate || dateObj < lastDate)) {
-            lastDate = dateObj;
-          }
+    try {
+        if (!client.connected) {
+            await client.connect();
         }
-      }
+        // GramJS ожидает offsetDate как число (Unix timestamp в секундах), а не Date
+        const offsetDateSeconds = offsetDate
+            ? Math.floor(offsetDate.getTime() / 1000)
+            : undefined;
+        const dialogs = await client.getDialogs({
+            limit,
+            offsetDate: offsetDateSeconds,
+        });
+        if (!Array.isArray(dialogs)) {
+            return { dialogs: [], hasMore: false };
+        }
+        const result = [];
+        let lastDate;
+        for (const d of dialogs) {
+            const parsed = parseDialog(d);
+            if (parsed) {
+                result.push(parsed);
+                // Сохраняем дату последнего сообщения для пагинации
+                if (d.date) {
+                    // Преобразуем d.date в Date, если это необходимо
+                    let dateObj;
+                    if (d.date instanceof Date) {
+                        dateObj = d.date;
+                    }
+                    else if (typeof d.date === "number") {
+                        // Timestamp в секундах (Telegram использует Unix timestamp)
+                        dateObj = new Date(d.date * 1000);
+                    }
+                    else if (typeof d.date === "bigint") {
+                        dateObj = new Date(Number(d.date) * 1000);
+                    }
+                    else {
+                        // Пробуем преобразовать через конструктор Date
+                        dateObj = new Date(d.date);
+                    }
+                    if (!isNaN(dateObj.getTime()) && (!lastDate || dateObj < lastDate)) {
+                        lastDate = dateObj;
+                    }
+                }
+            }
+        }
+        // Если получили меньше чем limit, значит больше нет
+        const hasMore = dialogs.length >= limit;
+        const response = {
+            dialogs: result,
+            hasMore,
+        };
+        if (hasMore && lastDate) {
+            response.nextOffsetDate = lastDate.toISOString();
+        }
+        return response;
     }
-    // Если получили меньше чем limit, значит больше нет
-    const hasMore = dialogs.length >= limit;
-    const response = {
-      dialogs: result,
-      hasMore,
-    };
-    if (hasMore && lastDate) {
-      response.nextOffsetDate = lastDate.toISOString();
+    catch (error) {
+        throw new Error(`Failed to get dialogs: ${error instanceof Error ? error.message : String(error)}`);
     }
-    return response;
-  } catch (error) {
-    throw new Error(
-      `Failed to get dialogs: ${error instanceof Error ? error.message : String(error)}`
-    );
-  } finally {
-    await safeDisconnect(client);
-  }
+    finally {
+        await safeDisconnect(client);
+    }
 }
 /**
  * Поиск контактов по имени
  */
 export async function getUserContacts(client) {
-  try {
-    if (!client.connected) {
-      await client.connect();
+    try {
+        if (!client.connected) {
+            await client.connect();
+        }
+        const result = await client.invoke(new Api.contacts.GetContacts({}));
+        if (!result || !("users" in result)) {
+            return [];
+        }
+        const dialogs = [];
+        for (const user of result.users || []) {
+            // Безопасный доступ к свойствам пользователя
+            const firstName = user.firstName || "";
+            const username = user.username || "";
+            const title = firstName || username || "Unknown";
+            const parsed = parseDialog({
+                entity: user,
+                title,
+                unread_сount: 0,
+            });
+            if (parsed) {
+                dialogs.push(parsed);
+            }
+        }
+        return dialogs;
     }
-    const result = await client.invoke(new Api.contacts.GetContacts({}));
-    if (!result || !("users" in result)) {
-      return [];
+    catch (error) {
+        throw new Error(`Failed to get contacts: ${error instanceof Error ? error.message : String(error)}`);
     }
-    const dialogs = [];
-    for (const user of result.users || []) {
-      // Безопасный доступ к свойствам пользователя
-      const firstName = user.firstName || "";
-      const username = user.username || "";
-      const title = firstName || username || "Unknown";
-      const parsed = parseDialog({
-        entity: user,
-        title,
-        unread_сount: 0,
-      });
-      if (parsed) {
-        dialogs.push(parsed);
-      }
+    finally {
+        await safeDisconnect(client);
     }
-    return dialogs;
-  } catch (error) {
-    throw new Error(
-      `Failed to get contacts: ${error instanceof Error ? error.message : String(error)}`
-    );
-  } finally {
-    await safeDisconnect(client);
-  }
 }
 /**
  * Поиск чатов/групп/каналов по названию (фильтрация из всех диалогов)
  */
 export async function getUserDialogs(client, limit = 1000) {
-  try {
-    if (!client.connected) {
-      await client.connect();
+    try {
+        if (!client.connected) {
+            await client.connect();
+        }
+        // Получаем все диалоги с большим лимитом
+        const allDialogs = await getDialogsSummary(client, limit);
+        return allDialogs.dialogs;
     }
-    // Получаем все диалоги с большим лимитом
-    const allDialogs = await getDialogsSummary(client, limit);
-    return allDialogs.dialogs;
-  } catch (error) {
-    throw new Error(
-      `Failed to get dialogs: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
+    catch (error) {
+        throw new Error(`Failed to get dialogs: ${error instanceof Error ? error.message : String(error)}`);
+    }
 }
 //# sourceMappingURL=telegram-mtproto.js.map

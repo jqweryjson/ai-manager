@@ -4,18 +4,19 @@ import { Layout } from "@consta/uikit/Layout";
 import { Text } from "@consta/uikit/Text";
 import { Button } from "@consta/uikit/Button";
 import { IconArrowUndone } from "@consta/icons/IconArrowUndone";
-import { DocumentManagementPanel } from "@/features/Documents";
 import { WorkspaceCombobox } from "@/widgets/WorkspaceCombobox";
 import { RoleCombobox } from "@/widgets/RoleCombobox";
 import { useWorkspace } from "@/shared/hooks/useWorkspace";
 import { useRole } from "@/shared/hooks/useRole";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
+
+import type { AssistantRole } from "@/shared/api/roles";
 import type { AssistantWidgetProps } from "./types";
 import type { Workspace } from "@/shared/context/WorkspaceContext";
-import type { AssistantRole } from "@/shared/api/roles";
+
+import { ExtraSettings } from "./ExtraSettings";
 
 import "./styles.css";
-import { useIsMobile } from "@/shared/hooks/useIsMobile";
-import { ExtraSettings } from "./ExtraSettings";
 
 export const AssistantWidget = ({
   mode,
@@ -25,9 +26,9 @@ export const AssistantWidget = ({
   initialWorkspaceId = null,
   initialRoleId = null,
   title: widgetTitle = "Настройки Ассистента",
-  showDocuments = true,
   initialMentionOnly = false,
   onChange,
+  readOnly = false,
 }: AssistantWidgetProps) => {
   const { workspaces } = useWorkspace();
   const { roles } = useRole();
@@ -92,16 +93,14 @@ export const AssistantWidget = ({
         className="assistant-widget__body-container"
       >
         <Layout className="assistant-widget__body">
-          {showDocuments && (
-            <DocumentManagementPanel containerSelector={containerSelector} />
-          )}
-
           <WorkspaceCombobox
             mode="selector"
             value={selectedWorkspace}
             onChange={ws => {
               setSelectedWorkspace(ws || null);
             }}
+            documentsContainerSelector={containerSelector}
+            disabled={readOnly}
           />
 
           <RoleCombobox
@@ -110,6 +109,7 @@ export const AssistantWidget = ({
             onChange={role => {
               setSelectedRole(role || null);
             }}
+            disabled={readOnly}
           />
 
           {isMobile && (

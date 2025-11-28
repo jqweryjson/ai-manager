@@ -13,24 +13,24 @@ interface DocumentManagementSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   containerSelector?: string;
+  initialWorkspaceId?: string;
 }
 
 export const DocumentManagementSidebar = ({
   isOpen,
   onClose,
   containerSelector,
+  initialWorkspaceId,
 }: DocumentManagementSidebarProps) => {
   const {
     documents,
-    selectedFile,
     selectedWorkspace,
     setSelectedWorkspace,
     docsQuery,
     uploadMutation,
     handleFileSelect,
-    handleUpload,
     handleDelete,
-  } = useUploadModal();
+  } = useUploadModal(initialWorkspaceId);
 
   const [sidebarContainer, setSidebarContainer] =
     useState<HTMLDivElement | null>(null);
@@ -40,6 +40,8 @@ export const DocumentManagementSidebar = ({
       setSidebarContainer(
         document.querySelector(containerSelector) as HTMLDivElement | null
       );
+    } else {
+      setSidebarContainer(document.body as HTMLDivElement);
     }
   }, [containerSelector]);
 
@@ -61,21 +63,23 @@ export const DocumentManagementSidebar = ({
             mode="selector"
             value={selectedWorkspace}
             onChange={setSelectedWorkspace}
+            enableDocumentsAction={false}
+            disabled={true}
           />
         </div>
 
         <div className="documents-sidebar__section">
           <FileUploadSection
-            selectedFile={selectedFile}
             onFileSelect={handleFileSelect}
-            onUpload={handleUpload}
             uploadMutation={uploadMutation}
             disabled={!selectedWorkspace}
           />
         </div>
 
         <div className="documents-sidebar__list-section">
-          <DocumentsList documents={documents} onDelete={handleDelete} />
+          <div className="documents-list">
+            <DocumentsList documents={documents} onDelete={handleDelete} />
+          </div>
           <EmptyState
             isLoading={docsQuery.isLoading}
             isEmpty={documents.length === 0}

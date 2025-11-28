@@ -80,8 +80,12 @@ export interface EntityComboboxProps<T extends BaseEntity> {
   // Кастомизация рендеринга
   renderItem?: (args: { item: T }) => ReactNode;
   renderExtraFields?: (handlers: ExtraFieldsHandlers<T>) => ReactNode;
+  renderActions?: (selectedItem: T | null) => ReactNode;
 
   // Обработка создания
   prepareCreateData?: (name: string) => string;
   onAfterCreate?: (item: T) => void | Promise<void>;
+
+  // Режим только для чтения
+  disabled?: boolean;
 }

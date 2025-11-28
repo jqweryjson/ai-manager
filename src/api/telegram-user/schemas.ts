@@ -75,6 +75,7 @@ export const SubscriptionItemInputSchema = z
     workspace_id: z.string().nullable().optional(),
     role_id: z.string().nullable().optional(),
     mention_only: z.boolean().optional(),
+    access_hash: z.string().nullable().optional(),
   })
   .refine(
     data => {
@@ -128,6 +129,7 @@ export const DialogItemSchema = z.object({
   peer_type: PeerTypeSchema,
   title: z.string(),
   unread_count: z.number(),
+  access_hash: z.string().nullable().optional(),
 });
 
 export const DialogsResponseSchema = z.object({
@@ -155,6 +157,7 @@ export const SubscriptionItemSchema = z.object({
   workspace_id: z.string().nullable(),
   role_id: z.string().nullable(),
   mention_only: z.boolean(),
+  access_hash: z.string().nullable().optional(),
 });
 
 export const GetSubscriptionsResponseSchema = z.object({

@@ -17,9 +17,6 @@ export interface AssistantWidgetProps {
   // Заголовок виджета (опционально, по умолчанию "Настройки Ассистента")
   title?: string;
 
-  // Показывать ли DocumentManagementPanel
-  showDocuments?: boolean;
-
   // Callback при изменении значений (вызывается при нажатии "Сохранить" или закрытии)
   onChange?: ({
     workspaceId,
@@ -30,4 +27,7 @@ export interface AssistantWidgetProps {
     roleId: string | null;
     mentionOnly: boolean;
   }) => void;
+
+  // Режим только для чтения (disabled для всех селектов)
+  readOnly?: boolean;
 }

@@ -11,6 +11,7 @@ export declare function handleGetSubscriptions(fastify: FastifyInstance, request
         enabled: boolean;
         workspace_id: string | null;
         role_id: string | null;
+        mention_only: boolean;
     }[];
 }>;
 //# sourceMappingURL=getSubscriptions.d.ts.map

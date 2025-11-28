@@ -18,7 +18,6 @@ ol[role="list"] {
 
 /* Set core body defaults */
 body {
-  min-height: 100vh;
   text-rendering: optimizeSpeed;
   line-height: 1.5;
 }
@@ -120,6 +119,14 @@ body {
 }
 
 .Theme {
+  &.Popover {
+    z-index: 1;
+  }
+
+  & .Sidebar-Window {
+    height: 100%;
+  }
+
   & .Button_view_primary:not(.Button:disabled):after {
     content: "";
     position: absolute;

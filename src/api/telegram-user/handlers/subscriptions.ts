@@ -38,6 +38,7 @@ export async function handleSubscriptions(
         role_id: item.role_id !== undefined ? item.role_id : null,
         mention_only:
           item.mention_only !== undefined ? item.mention_only : null,
+        access_hash: item.access_hash !== undefined ? item.access_hash : null,
       };
 
       // Для личных чатов всегда принудительно mention_only = false,

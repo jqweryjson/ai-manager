@@ -125,6 +125,18 @@ class TelegramListenerManager {
       return;
     }
 
+    console.log("🔎 Детали входящего сообщения", {
+      accountId,
+      messageId: message.id,
+      className: message.className,
+      peer_id: message.peer_id,
+      peerId: message.peerId,
+      toId: message.toId,
+      fromId: message.fromId,
+      chat: message.chat,
+      message: message.message ?? message.text,
+    });
+
     // Получаем peer_id
     const peer_id = this.messageProcessor.extractPeerId(
       message.peer_id || message.peerId

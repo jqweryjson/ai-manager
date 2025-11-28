@@ -1,10 +1,8 @@
 import { apiClient } from "./client";
-
-export interface UploadDocumentResponse {
-  doc_id: string;
-  chunks_count: number;
-  indexed_count: number;
-}
+import type {
+  UploadDocumentResponse,
+  ListDocumentsResponse,
+} from "./contracts";
 
 export async function uploadDocument(
   file: File,
@@ -21,10 +19,6 @@ export async function uploadDocument(
   });
 
   return response.data;
-}
-
-export interface ListDocumentsResponse {
-  documents: Array<{ doc_id: string; chunks: number }>;
 }
 
 export async function listDocuments(

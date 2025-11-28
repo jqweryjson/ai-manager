@@ -7,6 +7,7 @@ const SendMessageRequestSchema = z.object({
   account_id: z.string().min(1),
   peer_id: z.string().min(1),
   peer_type: z.enum(["user", "chat", "channel"]),
+  access_hash: z.string().nullable().optional(),
   text: z.string().min(1),
 });
 
@@ -23,7 +24,8 @@ export async function handleSendMessage(
       request.userId,
       body.peer_id,
       body.peer_type,
-      body.text
+      body.text,
+      body.access_hash
     );
 
     return { success: true };

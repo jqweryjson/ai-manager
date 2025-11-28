@@ -26,6 +26,7 @@ export class MessageProcessor {
       user_id: userId,
       peer_id: peerId,
       peer_type: subscription.peer_type,
+      access_hash: subscription.access_hash || null,
       workspace_id: subscription.workspace_id,
       role_id: subscription.role_id,
       message: {

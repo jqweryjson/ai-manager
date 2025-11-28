@@ -25,6 +25,7 @@ type DialogSummary = {
   peer_type: "user" | "chat" | "channel";
   title: string;
   unread_count: number;
+  access_hash?: string | null;
 };
 
 type GetDialogsResult = {
@@ -271,6 +272,7 @@ function parseDialog(d: any): DialogSummary | null {
 
     let peer_type: "user" | "chat" | "channel" = "chat";
     let peerIdStr = "";
+    let accessHash: string | null = null;
 
     const entityType =
       entity?.className || entity?.constructor?.name || entity?._;
@@ -278,18 +280,70 @@ function parseDialog(d: any): DialogSummary | null {
     if (entityType === "User" || entity?._ === "User") {
       peer_type = "user";
       peerIdStr = String(entity.id);
+      if (typeof entity.accessHash !== "undefined") {
+        accessHash = String(entity.accessHash);
+      }
     } else if (entityType === "Channel" || entity?._ === "Channel") {
+      console.log("[parseDialog] Channel entity detected", {
+        entityType,
+        id: entity?.id,
+        megagroup: entity?.megagroup,
+        accessHash: entity?.accessHash,
+        title: entity?.title,
+        username: entity?.username,
+      });
       if (entity?.megagroup) {
         peer_type = "chat"; // Супергруппа = чат
       } else {
         peer_type = "channel"; // Обычный канал
       }
       peerIdStr = String(entity.id);
-    } else if (entityType === "Chat" || entity?._ === "Chat") {
-      peer_type = "chat";
-      peerIdStr = String(entity.id);
-    } else if (typeof entity?.id !== "undefined") {
-      peerIdStr = String(entity.id);
+      if (typeof entity.accessHash !== "undefined") {
+        accessHash = String(entity.accessHash);
+      }
+    } else if (
+      entityType === "Chat" ||
+      entityType === "ChatForbidden" ||
+      entity?._ === "Chat" ||
+      entity?._ === "ChatForbidden"
+    ) {
+      console.log("[parseDialog] Chat entity detected", {
+        entityType,
+        id: entity?.id,
+        migratedTo: entity?.migratedTo,
+        migrated_to: entity?.migrated_to,
+        migrated_to_id: entity?.migrated_to_id,
+        migrated_access_hash: entity?.migrated_access_hash,
+      });
+      // Обычные группы, которые могли быть мигрированы в супергруппы
+      // const migrated =
+      //   entity?.migratedTo ||
+      //   entity?.migrated_to ||
+      //   (entity?.migrated_to_id
+      //     ? {
+      //         channelId: entity.migrated_to_id,
+      //         accessHash: entity.migrated_access_hash,
+      //       }
+      //     : null);
+
+      //   if (
+      //     migrated &&
+      //     (migrated.channelId || migrated.chatId || migrated.userId)
+      //   ) {
+      //     // Telegram больше не использует старый Chat ID — подменяем на актуальный channelId
+      //     peer_type = "chat";
+      //     const migratedId =
+      //       migrated.channelId || migrated.chatId || migrated.userId;
+      //     peerIdStr = String(migratedId);
+      //     if (typeof migrated.accessHash !== "undefined") {
+      //       accessHash = String(migrated.accessHash);
+      //     }
+      //   } else {
+      //     peer_type = "chat";
+      //     peerIdStr = String(entity.id);
+      //   }
+      // } else if (typeof entity?.id !== "undefined") {
+      //   peerIdStr = String(entity.id);
     }
 
     if (peerIdStr) {
@@ -298,6 +352,7 @@ function parseDialog(d: any): DialogSummary | null {
         peer_type,
         title,
         unread_count: unread_сount,
+        access_hash: accessHash,
       };
     }
     return null;

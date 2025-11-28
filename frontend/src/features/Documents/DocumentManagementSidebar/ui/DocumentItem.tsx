@@ -3,7 +3,7 @@ import { Text } from "@consta/uikit/Text";
 import { Button } from "@consta/uikit/Button";
 import { IconTrash } from "@consta/icons/IconTrash";
 import type { Document } from "../types";
-import { formatFileSize, formatDate } from "../lib/utils";
+import { formatDate } from "../lib/utils";
 
 interface DocumentItemProps {
   document: Document;
@@ -26,7 +26,7 @@ export const DocumentItem = ({ document, onDelete }: DocumentItemProps) => {
           📄 {document.name}
         </Text>
         <Text size="s" view="secondary">
-          {formatFileSize(document.size)} • {formatDate(document.uploadedAt)}
+          {formatDate(document.uploadedAt)}
         </Text>
       </div>
       <Button

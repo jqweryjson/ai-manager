@@ -30,7 +30,7 @@ export function SubscriptionConfigPanel({
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const { workspace_id, role_id, enabled, mention_only } = subscription ?? {};
-  const { peer_id, peer_type, title } = dialog;
+  const { peer_id, peer_type, title, access_hash } = dialog;
 
   // Находим названия workspace и role по ID
   const workspaceName = useMemo(
@@ -66,6 +66,7 @@ export function SubscriptionConfigPanel({
             enabled: config.enabled ?? enabled,
             workspace_id: config.workspace_id ?? workspace_id,
             role_id: config.role_id ?? role_id,
+            access_hash: access_hash ?? null,
           },
         ],
       });

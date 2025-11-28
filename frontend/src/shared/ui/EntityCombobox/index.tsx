@@ -1,20 +1,24 @@
 import { Button } from "@consta/uikit/Button";
 import { Layout } from "@consta/uikit/Layout";
 import { IconAdd } from "@consta/icons/IconAdd";
-import { Select } from "@/shared/ui/Select";
+import {
+  Select,
+  type PropRenderValue,
+  type PropRenderItem,
+  type SelectPropOnChange,
+} from "@consta/uikit/Select";
 import { EditableField } from "@/shared/ui/EditableField";
-import { ValueRenderer } from "@/shared/ui/ValueRenderer";
 import { EntityItem } from "./EntityItem";
 import { useEntityCRUD } from "./useEntityCRUD";
-import { useEntitySelection } from "./useEntitySelection";
 import type { BaseEntity, EntityComboboxProps } from "./types";
 import { Text } from "@consta/uikit/Text";
+import { IconEdit } from "@consta/icons/IconEdit";
 
 export function EntityCombobox<T extends BaseEntity>({
   label,
   mode = "switcher",
-  value: externalValue,
-  onChange: externalOnChange,
+  value,
+  onChange,
   currentItem,
   setCurrentItem,
   items,
@@ -30,17 +34,20 @@ export function EntityCombobox<T extends BaseEntity>({
   deleteConfirmMessage,
   renderItem: customRenderItem,
   renderExtraFields,
+  renderActions,
   prepareCreateData,
   onAfterCreate,
+  disabled = false,
 }: EntityComboboxProps<T>) {
-  // Логика выбора элемента
-  const { selectedItem, handleSelect } = useEntitySelection({
-    mode,
-    currentItem,
-    setCurrentItem,
-    externalValue,
-    externalOnChange,
-  });
+  // Логика выбора элемента в зависимости от режима
+  const selectedItem = mode === "selector" ? (value ?? null) : currentItem;
+  const handleSelect = (item: T | null) => {
+    if (mode === "selector" && onChange) {
+      onChange(item);
+    } else {
+      setCurrentItem(item);
+    }
+  };
 
   // CRUD операции
   const {
@@ -66,61 +73,107 @@ export function EntityCombobox<T extends BaseEntity>({
     deleteConfirmMessage,
   });
 
-  // Рендер выбранного значения
-  const renderValue = ({ value }: { value: T | null }) => {
-    const isEditing = Boolean(editingId && value?.id === editingId);
+  // Адаптер onChange для Consta Select
+  const handleConstaChange: SelectPropOnChange<T> = item => {
+    handleSelect(item);
+  };
 
+  // Рендер выбранного значения для Consta Select (просто отображение)
+  const constaRenderValue: PropRenderValue<T> = ({ item }) => {
     return (
-      <ValueRenderer
-        value={value}
-        isEditing={isEditing}
-        editingValue={tempName}
-        onStartEdit={startEdit}
-        onSaveEdit={name => value && saveEdit(value.id, name)}
-        onCancelEdit={cancelEdit}
-        isLoading={updateMutation.isPending}
-        getDisplayValue={item => item.name}
-        placeholder={placeholder}
-        size="xs"
-      />
+      <Text view="primary" size="xs" truncate style={{ flex: 1 }}>
+        {item?.name || placeholder}
+      </Text>
     );
   };
 
-  // Рендер элемента в списке
-  const defaultRenderItem = ({ item }: { item: T }) => {
+  // Рендер элемента в списке для Consta Select
+  const constaRenderItem: PropRenderItem<T> = props => {
+    const { item, onClick, onMouseEnter, ref } = props;
     const isEditing = editingId === item.id;
     const isDeleting =
       deleteMutation.isPending && deleteMutation.variables === item.id;
 
+    // Если передан кастомный рендер, используем его
+    if (customRenderItem) {
+      return (
+        <div ref={ref} onClick={onClick} onMouseEnter={onMouseEnter}>
+          {customRenderItem({ item })}
+        </div>
+      );
+    }
+
+    // Иначе используем дефолтный EntityItem
     return (
-      <EntityItem
-        item={item}
-        isEditing={isEditing}
-        tempName={tempName}
-        onStartEdit={startEdit}
-        onSaveEdit={saveEdit}
-        onCancelEdit={cancelEdit}
-        onDelete={handleDelete}
-        isUpdating={updateMutation.isPending}
-        isDeleting={isDeleting}
-      />
+      <div ref={ref} onClick={onClick} onMouseEnter={onMouseEnter}>
+        <EntityItem
+          item={item}
+          isEditing={isEditing}
+          tempName={tempName}
+          onStartEdit={startEdit}
+          onSaveEdit={saveEdit}
+          onCancelEdit={cancelEdit}
+          onDelete={handleDelete}
+          isUpdating={updateMutation.isPending}
+          isDeleting={isDeleting}
+        />
+      </div>
     );
   };
 
   // Если в режиме создания
   if (isAdding) {
     return (
-      <EditableField
-        inputRef={inputRef}
-        value={tempName}
-        onSave={saveNew}
-        onCancel={cancelEdit}
-        isLoading={createMutation.isPending}
-        size="xs"
-        placeholder={createPlaceholder}
-      />
+      <div>
+        <Text size="xs" weight="semibold" view="secondary">
+          {label}
+        </Text>
+        <EditableField
+          inputRef={inputRef}
+          value={tempName}
+          onSave={saveNew}
+          onCancel={cancelEdit}
+          isLoading={createMutation.isPending}
+          size="xs"
+          placeholder={createPlaceholder}
+        />
+      </div>
     );
   }
+
+  // Если в режиме редактирования
+  if (editingId && selectedItem?.id === editingId) {
+    return (
+      <div>
+        <Text size="xs" weight="semibold" view="secondary">
+          {label}
+        </Text>
+        <EditableField
+          inputRef={inputRef}
+          value={tempName}
+          onSave={name => saveEdit(editingId, name)}
+          onCancel={cancelEdit}
+          isLoading={updateMutation.isPending}
+          size="xs"
+          placeholder={placeholder}
+        />
+      </div>
+    );
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const selectProps: any = {
+    items,
+    value: selectedItem,
+    onChange: handleConstaChange,
+    getItemKey: (item: T) => item.id,
+    getItemLabel: (item: T) => item.name,
+    placeholder,
+    size: "xs",
+    renderValue: constaRenderValue,
+    renderItem: constaRenderItem,
+    disabled: disabled || isLoading,
+  };
 
   return (
     <div>
@@ -131,20 +184,23 @@ export function EntityCombobox<T extends BaseEntity>({
         direction="row"
         style={{ gap: "var(--space-2xs)", alignItems: "center", width: "100%" }}
       >
-        <Select
-          items={items}
-          value={selectedItem || null}
-          onChange={handleSelect}
-          getItemKey={item => item.id}
-          getItemLabel={item => item.name}
-          placeholder={placeholder}
-          size="s"
-          renderValue={renderValue}
-          renderItem={customRenderItem || defaultRenderItem}
-          disabled={isLoading}
-        />
+        <Select {...selectProps} />
 
-        {!isAdding && !editingId && (
+        {selectedItem && !disabled && (
+          <Button
+            size="xs"
+            view="ghost"
+            iconLeft={IconEdit}
+            onClick={e => {
+              e.stopPropagation();
+              startEdit(selectedItem);
+            }}
+            title="Редактировать"
+            onlyIcon
+          />
+        )}
+
+        {!isAdding && !editingId && !disabled && (
           <Button
             size="xs"
             view="ghost"
@@ -154,6 +210,8 @@ export function EntityCombobox<T extends BaseEntity>({
             onlyIcon
           />
         )}
+
+        {renderActions && renderActions(selectedItem)}
       </Layout>
 
       {/* Дополнительные поля (например, промпт для роли) */}

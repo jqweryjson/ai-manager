@@ -153,6 +153,8 @@ export async function listSubscriptions(accountId, userId) {
             enabled: row.enabled,
             workspace_id: row.workspace_id || null,
             role_id: row.role_id || null,
+            mention_only: row.mention_only ?? true,
+            access_hash: row.access_hash || null,
             created_at: row.created_at,
             updated_at: row.updated_at,
         }));
@@ -165,18 +167,42 @@ export async function upsertSubscriptions(accountId, userId, items) {
     }
     await withTransaction(async (client) => {
         for (const it of items) {
-            await client.query(`INSERT INTO telegram_subscriptions (id, telegram_account_id, peer_id, peer_type, title, enabled, workspace_id, role_id, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+            // Для личных чатов (peer_type = 'user') всегда принудительно mention_only = false
+            const isDirect = it.peer_type === "user";
+            // Для INSERT: если поле null, используем дефолт (enabled=false, workspace_id=null, role_id=null)
+            // Для UPDATE: если поле null, COALESCE сохранит старое значение
+            const enabledValue = it.enabled !== null ? it.enabled : false;
+            const workspaceIdValue = it.workspace_id !== null ? it.workspace_id : null;
+            const roleIdValue = it.role_id !== null ? it.role_id : null;
+            const mentionOnlyValue = isDirect
+                ? false
+                : it.mention_only !== null
+                    ? it.mention_only
+                    : true;
+            const accessHashValue = typeof it.access_hash === "string" && it.access_hash.length > 0
+                ? it.access_hash
+                : null;
+            await client.query(`INSERT INTO telegram_subscriptions (id, telegram_account_id, peer_id, peer_type, title, enabled, workspace_id, role_id, mention_only, access_hash, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
          ON CONFLICT (telegram_account_id, peer_id)
-         DO UPDATE SET title = EXCLUDED.title, enabled = EXCLUDED.enabled, workspace_id = EXCLUDED.workspace_id, role_id = EXCLUDED.role_id, updated_at = NOW()`, [
+         DO UPDATE SET 
+           title = EXCLUDED.title,
+           enabled = COALESCE(EXCLUDED.enabled, telegram_subscriptions.enabled),
+           workspace_id = COALESCE(EXCLUDED.workspace_id, telegram_subscriptions.workspace_id),
+           role_id = COALESCE(EXCLUDED.role_id, telegram_subscriptions.role_id),
+           mention_only = COALESCE(EXCLUDED.mention_only, telegram_subscriptions.mention_only),
+           access_hash = COALESCE(EXCLUDED.access_hash, telegram_subscriptions.access_hash),
+           updated_at = NOW()`, [
                 `sub_${accountId}_${it.peer_id}`,
                 accountId,
                 parseInt(it.peer_id, 10),
                 it.peer_type,
                 it.title,
-                typeof it.enabled === "boolean" ? it.enabled : false,
-                it.workspace_id || null,
-                it.role_id || null,
+                enabledValue,
+                workspaceIdValue,
+                roleIdValue,
+                mentionOnlyValue,
+                accessHashValue,
             ]);
         }
     });

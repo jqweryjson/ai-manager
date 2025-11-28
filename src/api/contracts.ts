@@ -44,6 +44,7 @@ export interface SubscriptionItemInput {
   workspace_id?: string | null;
   role_id?: string | null;
   mention_only?: boolean;
+  access_hash?: string | null;
 }
 
 export interface SaveSubscriptionsRequest {
@@ -85,6 +86,7 @@ export interface DialogItem {
   peer_type: PeerType;
   title: string;
   unread_count: number;
+  access_hash?: string | null;
 }
 
 export interface DialogsResponse {
@@ -112,6 +114,7 @@ export interface SubscriptionItem {
   workspace_id: string | null;
   role_id: string | null;
   mention_only: boolean;
+  access_hash?: string | null;
 }
 
 export interface GetSubscriptionsResponse {
@@ -160,4 +163,22 @@ export interface GetContactsParams {
 export interface GetAllDialogsParams {
   accountId?: string;
   limit?: number;
+}
+
+// ============= DOCUMENTS TYPES =============
+
+export interface DocumentItem {
+  doc_id: string;
+  chunks: number;
+  created_at?: string;
+}
+
+export interface ListDocumentsResponse {
+  documents: DocumentItem[];
+}
+
+export interface UploadDocumentResponse {
+  doc_id: string;
+  chunks_count: number;
+  indexed_count: number;
 }

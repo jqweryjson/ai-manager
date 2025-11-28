@@ -5,7 +5,7 @@ import "./styles.css";
 export const SettingsPage = () => {
   return (
     <Layout direction="column" className="settings-page">
-      <AssistantWidget mode="permanent" showDocuments={true} />
+      <AssistantWidget mode="permanent" containerSelector=".settings-page" />
     </Layout>
   );
 };

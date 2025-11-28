@@ -233,6 +233,7 @@ export interface TelegramSubscription {
   workspace_id: string | null;
   role_id: string | null;
   mention_only: boolean;
+  access_hash: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -253,6 +254,7 @@ export async function listSubscriptions(
        ORDER BY created_at DESC`,
       [accountId]
     );
+
     return res.rows.map(row => ({
       id: row.id,
       telegram_account_id: row.telegram_account_id,
@@ -263,6 +265,7 @@ export async function listSubscriptions(
       workspace_id: row.workspace_id || null,
       role_id: row.role_id || null,
       mention_only: row.mention_only ?? true,
+      access_hash: row.access_hash || null,
       created_at: row.created_at,
       updated_at: row.updated_at,
     }));
@@ -280,6 +283,7 @@ export async function upsertSubscriptions(
     workspace_id?: string | null;
     role_id?: string | null;
     mention_only?: boolean | null;
+    access_hash?: string | null;
   }>
 ): Promise<void> {
   const account = await getTelegramAccount(accountId, userId);
@@ -302,10 +306,14 @@ export async function upsertSubscriptions(
         : it.mention_only !== null
           ? it.mention_only
           : true;
+      const accessHashValue =
+        typeof it.access_hash === "string" && it.access_hash.length > 0
+          ? it.access_hash
+          : null;
 
       await client.query(
-        `INSERT INTO telegram_subscriptions (id, telegram_account_id, peer_id, peer_type, title, enabled, workspace_id, role_id, mention_only, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+        `INSERT INTO telegram_subscriptions (id, telegram_account_id, peer_id, peer_type, title, enabled, workspace_id, role_id, mention_only, access_hash, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
          ON CONFLICT (telegram_account_id, peer_id)
          DO UPDATE SET 
            title = EXCLUDED.title,
@@ -313,6 +321,7 @@ export async function upsertSubscriptions(
            workspace_id = COALESCE(EXCLUDED.workspace_id, telegram_subscriptions.workspace_id),
            role_id = COALESCE(EXCLUDED.role_id, telegram_subscriptions.role_id),
            mention_only = COALESCE(EXCLUDED.mention_only, telegram_subscriptions.mention_only),
+           access_hash = COALESCE(EXCLUDED.access_hash, telegram_subscriptions.access_hash),
            updated_at = NOW()`,
         [
           `sub_${accountId}_${it.peer_id}`,
@@ -324,6 +333,7 @@ export async function upsertSubscriptions(
           workspaceIdValue,
           roleIdValue,
           mentionOnlyValue,
+          accessHashValue,
         ]
       );
     }

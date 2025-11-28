@@ -7,6 +7,7 @@ interface TelegramEvent {
   user_id: string;
   peer_id: string;
   peer_type: "user" | "chat" | "channel";
+  access_hash?: string | null;
   workspace_id: string | null;
   role_id: string | null;
   is_outgoing?: boolean; // Флаг для дополнительной проверки исходящих сообщений
@@ -63,6 +64,7 @@ export async function handleTelegramEvent(
     console.log(`🎯 Обработка события от Listener:`);
     console.log(`   Аккаунт: ${event.account_id}`);
     console.log(`   Чат: ${event.peer_id} (${event.peer_type})`);
+    console.log(`   Access Hash: ${event.access_hash || "null"}`);
     console.log(`   Сообщение: ${event.message.text}`);
     console.log(`   Workspace: ${event.workspace_id}`);
     console.log(`   Role: ${event.role_id}`);
@@ -100,7 +102,8 @@ export async function handleTelegramEvent(
         event.user_id,
         event.peer_id,
         event.peer_type,
-        chatResponse.answer
+        chatResponse.answer,
+        event.access_hash
       );
       console.log(
         `📤 Ответ отправлен в Telegram чат ${event.peer_id} (${event.peer_type})`

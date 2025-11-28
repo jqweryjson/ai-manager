@@ -10,7 +10,7 @@
 - ✅ Docker: Redis (6380), PostgreSQL (5432), Milvus (19530), Embeddings worker (9040), Attu WebUI (6001)
 - ✅ Изоляция данных: все чанки и векторы привязаны к user_id
 - ✅ Frontend: React 19 + Vite + Consta UI + FSD архитектура + TanStack Query
-- ✅ UI: авторизация, главный лейаут, чат-страница, DocumentManagementPanel
+- ✅ UI: авторизация, главный лейаут, чат-страница
 - ✅ Система ролей: RoleCombobox с автогенерацией промптов через LLM
 - ✅ Файловая загрузка: работает end-to-end от фронта до Milvus
 - ✅ **Мобильная версия: CSS-based адаптивность (2 брейкпоинта: mobile < 768px, desktop ≥ 768px)**

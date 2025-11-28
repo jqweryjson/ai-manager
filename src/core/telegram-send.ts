@@ -34,7 +34,8 @@ export async function sendTelegramMessage(
   userId: string,
   peerId: string,
   peerType: "user" | "chat" | "channel",
-  text: string
+  text: string,
+  accessHash?: string | null
 ): Promise<void> {
   const account = await getTelegramAccount(accountId, userId);
   if (!account) {
@@ -64,13 +65,38 @@ export async function sendTelegramMessage(
     // GramJS использует BigInteger из библиотеки big-integer
     const idBigInt = bigInt(peerId);
 
-    let entity: Api.TypePeer;
+    console.log(
+      `[sendTelegramMessage] peerId=${peerId}, peerType=${peerType}, accessHash=${accessHash || "null"}`
+    );
+
+    let entity: Api.TypePeer | Api.TypeInputPeer;
     if (peerType === "user") {
-      entity = new Api.PeerUser({ userId: idBigInt });
+      if (accessHash) {
+        entity = new Api.InputPeerUser({
+          userId: idBigInt,
+          accessHash: bigInt(accessHash),
+        });
+      } else {
+        entity = new Api.PeerUser({ userId: idBigInt });
+      }
     } else if (peerType === "chat") {
-      entity = new Api.PeerChat({ chatId: idBigInt });
+      if (accessHash) {
+        // Супергруппа (megagroup) отдаёт peer_type=chat, но требует channel peer
+        entity = new Api.InputPeerChannel({
+          channelId: idBigInt,
+          accessHash: bigInt(accessHash),
+        });
+      } else {
+        entity = new Api.PeerChat({ chatId: idBigInt });
+      }
     } else {
-      entity = new Api.PeerChannel({ channelId: idBigInt });
+      if (!accessHash) {
+        throw new Error("Missing access hash for channel peer");
+      }
+      entity = new Api.InputPeerChannel({
+        channelId: idBigInt,
+        accessHash: bigInt(accessHash),
+      });
     }
 
     await client.sendMessage(entity, { message: text });

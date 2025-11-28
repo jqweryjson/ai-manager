@@ -113,7 +113,7 @@ export const ChatPage = () => {
                 size="s"
                 view="ghost"
                 iconLeft={IconSettings}
-                label="Настройки Ассистента"
+                label="Выбрать роль и рабочую область для тестирования"
                 onClick={() => setIsAssistantWidgetOpen(true)}
               />
             </div>
@@ -148,7 +148,6 @@ export const ChatPage = () => {
               isOpen={isAssistantWidgetOpen}
               onClose={() => setIsAssistantWidgetOpen(false)}
               containerSelector=".chat-container"
-              showDocuments={true}
             />
           )}
         </>

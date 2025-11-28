@@ -1,14 +1,9 @@
 import { Button } from "@consta/uikit/Button";
 import { Text } from "@consta/uikit/Text";
-import { Layout } from "@consta/uikit/Layout";
-import { Loader } from "@consta/uikit/Loader";
 import type { UseMutationResult } from "@tanstack/react-query";
-import { formatFileSize } from "../lib/utils";
 
 interface FileUploadSectionProps {
-  selectedFile: File | null;
   onFileSelect: (file: File | null) => void;
-  onUpload: () => void;
   uploadMutation: UseMutationResult<
     { doc_id: string },
     Error,
@@ -18,9 +13,7 @@ interface FileUploadSectionProps {
 }
 
 export const FileUploadSection = ({
-  selectedFile,
   onFileSelect,
-  onUpload,
   uploadMutation,
   disabled,
 }: FileUploadSectionProps) => {
@@ -40,37 +33,13 @@ export const FileUploadSection = ({
         }}
       />
 
-      <Layout direction="row" style={{ gap: "var(--space-m)" }}>
-        <Button
-          label="Выбрать файл (.txt)"
-          view="secondary"
-          style={{ marginLeft: "auto" }}
-          size="s"
-          onClick={() => document.getElementById("file-input")?.click()}
-          disabled={uploadMutation.isPending}
-        />
-        {selectedFile && (
-          <Button
-            label={uploadMutation.isPending ? "Загрузка..." : "Загрузить"}
-            view="primary"
-            size="s"
-            onClick={onUpload}
-            disabled={uploadMutation.isPending || disabled}
-          />
-        )}
-      </Layout>
-
-      {selectedFile && !uploadMutation.isPending && (
-        <Text size="s" view="secondary">
-          Выбран: {selectedFile.name} ({formatFileSize(selectedFile.size)})
-        </Text>
-      )}
-
-      {uploadMutation.isPending && (
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <Loader />
-        </div>
-      )}
+      <Button
+        label={uploadMutation.isPending ? "Загрузка..." : "Выбрать файл (.txt)"}
+        view="secondary"
+        size="s"
+        onClick={() => document.getElementById("file-input")?.click()}
+        disabled={uploadMutation.isPending || disabled}
+      />
 
       {uploadMutation.error && (
         <Text size="m" view="alert">

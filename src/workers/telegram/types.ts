@@ -12,6 +12,7 @@ export interface TelegramEvent {
   user_id: string;
   peer_id: string;
   peer_type: "user" | "chat" | "channel";
+  access_hash?: string | null;
   workspace_id: string | null;
   role_id: string | null;
   is_outgoing?: boolean; // Флаг для дополнительной проверки исходящих сообщений

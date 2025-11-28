@@ -23,7 +23,6 @@
 - ✅ TanStack Query для API запросов
 - ✅ Google OAuth авторизация
 - ✅ Главный лейаут с хедером и сайдбаром
-- ✅ Страница чата с DocumentManagementPanel
 - ✅ Система ролей ассистента (RoleCombobox)
 - ✅ Автогенерация промптов ролей через LLM
 - ✅ Автоматическое обновление токенов через Axios interceptors
@@ -76,7 +75,6 @@
 
 **Frontend:**
 
-- `frontend/src/features/Documents/ui/DocumentManagementPanel.tsx` - UI управления документами
 - `frontend/src/widgets/RoleCombobox/` - система ролей
 - `frontend/src/shared/api/client.ts` - Axios с токенами
 

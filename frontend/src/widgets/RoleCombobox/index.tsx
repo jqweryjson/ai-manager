@@ -16,12 +16,14 @@ interface RoleComboboxProps {
   mode?: "switcher" | "selector";
   value?: AssistantRole | null;
   onChange?: (role: AssistantRole | null) => void;
+  disabled?: boolean;
 }
 
 export const RoleCombobox = ({
   mode = "switcher",
   value,
   onChange,
+  disabled = false,
 }: RoleComboboxProps) => {
   const { currentRole, setCurrentRole, roles, isLoading } = useRole();
   const createMutation = useCreateRoleMutation();
@@ -102,13 +104,14 @@ export const RoleCombobox = ({
       createMutation={wrappedCreateMutation}
       updateMutation={wrappedUpdateMutation}
       deleteMutation={deleteMutation}
-      placeholder="Выберите роль ассистента ▼"
+      placeholder="Выберите роль ассистента"
       createPlaceholder="Название роли"
       addButtonTitle="Добавить роль"
       deleteConfirmMessage="Удалить эту роль?"
       prepareCreateData={name => name}
       onAfterCreate={handleAfterCreate}
       renderExtraFields={renderPromptField}
+      disabled={disabled}
     />
   );
 };

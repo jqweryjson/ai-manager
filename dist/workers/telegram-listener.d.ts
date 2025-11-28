@@ -1,14 +1,13 @@
 declare class TelegramListenerManager {
     private clients;
     private isShuttingDown;
+    private clientManager;
+    private messageProcessor;
+    private eventSender;
     /**
      * Инициализация: загружаем все connected аккаунты с enabled подписками
      */
     initialize(): Promise<void>;
-    /**
-     * Получить все аккаунты со статусом connected и хотя бы одной enabled подпиской
-     */
-    private getActiveAccounts;
     /**
      * Запустить слушатель для конкретного аккаунта
      */
@@ -21,10 +20,6 @@ declare class TelegramListenerManager {
      * Обработка нового сообщения
      */
     private handleNewMessage;
-    /**
-     * Извлечь peer_id из объекта Peer
-     */
-    private extractPeerId;
     /**
      * Получить статус всех слушателей
      */

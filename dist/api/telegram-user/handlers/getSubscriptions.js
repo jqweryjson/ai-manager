@@ -23,6 +23,7 @@ export async function handleGetSubscriptions(fastify, request, reply) {
                 enabled: sub.enabled,
                 workspace_id: sub.workspace_id,
                 role_id: sub.role_id,
+                mention_only: sub.mention_only,
             })),
         };
     }
