@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { presetGpnDefault, presetGpnDark } from "@consta/uikit/Theme";
 import type { ThemeName, ThemePreset } from "@/shared/types/theme";
-
-const THEME_STORAGE_KEY = "theme_preference";
+import { themeStore } from "@/shared/model/themeStore";
 
 export const availableThemes: ThemePreset[] = [
   {
@@ -20,18 +19,14 @@ export const availableThemes: ThemePreset[] = [
 ];
 
 export function useTheme() {
-  const [theme, setThemeState] = useState<ThemeName>("dark");
-
-  useEffect(() => {
-    const saved = localStorage.getItem(THEME_STORAGE_KEY) as ThemeName;
-    if (saved && availableThemes.some(t => t.name === saved)) {
-      setThemeState(saved);
-    }
-  }, []);
+  const theme = useSyncExternalStore(
+    themeStore.subscribe,
+    () => themeStore.getState().theme,
+    () => "dark"
+  );
 
   const setTheme = (newTheme: ThemeName) => {
-    setThemeState(newTheme);
-    localStorage.setItem(THEME_STORAGE_KEY, newTheme);
+    themeStore.setTheme(newTheme);
   };
 
   const currentPreset = useMemo(

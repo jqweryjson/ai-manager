@@ -26,7 +26,7 @@
 }
 
 .tg-dialogs-item--enabled {
-  background: linear-gradient(to right, transparent, #2b2337 40%);
+  background: var(--active-gradient);
 }
 
 .tg-dialogs-item__header {

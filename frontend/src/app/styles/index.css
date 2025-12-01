@@ -123,6 +123,14 @@ body {
     z-index: 1;
   }
 
+  &.Theme_color_gpnDefault {
+    --active-gradient: linear-gradient(to right, transparent, #20ae953d 80%);
+  }
+
+  &.Theme_color_gpnDark {
+    --active-gradient: linear-gradient(to right, transparent, #2b2337 40%);
+  }
+
   & .Sidebar-Window {
     height: 100%;
   }
