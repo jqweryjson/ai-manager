@@ -65,7 +65,7 @@ export function useTelegramUserStatus(): UseTelegramUserStatusResult {
   return {
     status,
     accountId,
-    userPhone: data?.accounts[0].phone || null,
+    userPhone: data?.accounts?.[0]?.phone || null,
     requires2FA,
     isLoading,
     error: error as Error | null,
