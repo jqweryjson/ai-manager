@@ -19,7 +19,7 @@ export async function handleSendMessage(
   try {
     const body = SendMessageRequestSchema.parse(request.body);
 
-    await sendTelegramMessage(
+    const result = await sendTelegramMessage(
       body.account_id,
       request.userId,
       body.peer_id,
@@ -27,6 +27,19 @@ export async function handleSendMessage(
       body.text,
       body.access_hash
     );
+
+    if (!result.success) {
+      if (result.floodWaitSeconds) {
+        return reply.status(429).send({
+          error: "flood_wait",
+          wait_seconds: result.floodWaitSeconds,
+          message: `A wait of ${result.floodWaitSeconds} seconds is required`,
+        });
+      }
+      return reply.status(500).send({
+        error: result.error || "Failed to send Telegram message",
+      });
+    }
 
     return { success: true };
   } catch (error: any) {

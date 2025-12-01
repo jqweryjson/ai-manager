@@ -1,6 +1,6 @@
 import { TelegramClient } from "telegram";
-import { StringSession } from "telegram/sessions";
-import { Api } from "telegram/tl";
+import { StringSession } from "telegram/sessions/index.js";
+import { Api } from "telegram/tl/index.js";
 
 // Фильтруем TIMEOUT ошибки из GramJS update loop
 // Это нормальное поведение для long-polling, но не должно засорять консоль
@@ -284,14 +284,6 @@ function parseDialog(d: any): DialogSummary | null {
         accessHash = String(entity.accessHash);
       }
     } else if (entityType === "Channel" || entity?._ === "Channel") {
-      console.log("[parseDialog] Channel entity detected", {
-        entityType,
-        id: entity?.id,
-        megagroup: entity?.megagroup,
-        accessHash: entity?.accessHash,
-        title: entity?.title,
-        username: entity?.username,
-      });
       if (entity?.megagroup) {
         peer_type = "chat"; // Супергруппа = чат
       } else {
@@ -307,14 +299,6 @@ function parseDialog(d: any): DialogSummary | null {
       entity?._ === "Chat" ||
       entity?._ === "ChatForbidden"
     ) {
-      console.log("[parseDialog] Chat entity detected", {
-        entityType,
-        id: entity?.id,
-        migratedTo: entity?.migratedTo,
-        migrated_to: entity?.migrated_to,
-        migrated_to_id: entity?.migrated_to_id,
-        migrated_access_hash: entity?.migrated_access_hash,
-      });
       // Обычные группы, которые могли быть мигрированы в супергруппы
       // const migrated =
       //   entity?.migratedTo ||
@@ -325,7 +309,6 @@ function parseDialog(d: any): DialogSummary | null {
       //         accessHash: entity.migrated_access_hash,
       //       }
       //     : null);
-
       //   if (
       //     migrated &&
       //     (migrated.channelId || migrated.chatId || migrated.userId)

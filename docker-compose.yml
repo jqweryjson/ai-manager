@@ -14,10 +14,22 @@ services:
       - milvus_data:/var/lib/milvus
     ports:
       - "19530:19530"
-      - "9091:9091"
     depends_on:
       - etcd
       - minio
+    networks:
+      - milvus
+
+  attu:
+    image: zilliz/attu:latest
+    container_name: attu
+    environment:
+      # Адрес Milvus внутри docker-сети
+      MILVUS_URL: milvus-standalone:19530
+    ports:
+      - "6001:3000"  # 6001 на хосте → 3000 внутри контейнера Attu
+    depends_on:
+      - milvus-standalone
     networks:
       - milvus
 
@@ -98,12 +110,39 @@ services:
     networks:
       - milvus
 
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: ai-manager-rabbitmq
+    env_file:
+      - .env
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-admin123}
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - milvus
+
   telegram-listener:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: telegram-listener
-    command: node dist/workers/telegram-listener.js
+    # Запускаем и listener, и sender в одном контейнере
+    command: >
+      sh -c "
+        node dist/workers/telegram-listener.js &
+        node dist/workers/telegram-sender.js & 
+        node dist/workers/telegram-llm-worker.js
+      "
     restart: unless-stopped
     env_file:
       - .env
@@ -113,10 +152,16 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       BACKEND_URL: http://host.docker.internal:4001/api
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+      EMBEDDINGS_WORKER_URL: http://host.docker.internal:9040
+      MILVUS_HOST: milvus-standalone:19530
+      GROQ_SOCKS_PROXY: socks5://shadowsocks-proxy:1080
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - milvus
@@ -131,6 +176,7 @@ volumes:
   etcd_data:
   minio_data:
   postgres_data:
+  rabbitmq_data:
 
 networks:
   milvus:

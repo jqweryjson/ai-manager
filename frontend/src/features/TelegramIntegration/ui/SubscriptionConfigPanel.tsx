@@ -51,6 +51,7 @@ export function SubscriptionConfigPanel({
       enabled?: boolean;
       workspace_id?: string | null;
       role_id?: string | null;
+      mention_only?: boolean;
     },
     onSuccess?: () => void
   ) => {
@@ -66,6 +67,10 @@ export function SubscriptionConfigPanel({
             enabled: config.enabled ?? enabled,
             workspace_id: config.workspace_id ?? workspace_id,
             role_id: config.role_id ?? role_id,
+            mention_only:
+              config.mention_only !== undefined
+                ? config.mention_only
+                : mention_only,
             access_hash: access_hash ?? null,
           },
         ],
@@ -90,14 +95,17 @@ export function SubscriptionConfigPanel({
   const handleSettingsChange = async ({
     workspaceId,
     roleId,
+    mentionOnly,
   }: {
     workspaceId: string | null;
     roleId: string | null;
+    mentionOnly: boolean;
   }) => {
     await saveSubscriptionConfig(
       {
         workspace_id: workspaceId,
         role_id: roleId,
+        mention_only: mentionOnly,
       },
       () => {
         setIsWidgetOpen(false);

@@ -22,15 +22,15 @@ export const ConnectionFooter = ({
       direction="row"
       style={{
         alignItems: "center",
-        justifyContent: "space-between",
+        justifyContent: "flex-end",
         gap: "var(--space-s)",
       }}
     >
       {isConnected(status) && accountId ? (
         <Button
-          label="Отключить"
+          label="Отключить интеграцию"
           view="secondary"
-          size="s"
+          size="xs"
           onClick={handleDisconnect}
           disabled={loading}
         />

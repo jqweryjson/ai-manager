@@ -1,4 +1,4 @@
-import { Api } from "telegram/tl";
+import { Api } from "telegram/tl/index.js";
 import { TelegramClient } from "telegram";
 import bigInt from "big-integer";
 import {
@@ -27,6 +27,44 @@ async function safeDisconnect(client: TelegramClient): Promise<void> {
 }
 
 /**
+ * Результат отправки сообщения
+ */
+export interface SendTelegramMessageResult {
+  success: boolean;
+  floodWaitSeconds?: number | null;
+  error?: string;
+}
+
+/**
+ * Парсинг FLOOD_WAIT из ошибки Telegram
+ * @param error - Ошибка от Telegram API
+ * @returns Количество секунд ожидания или null, если это не FLOOD_WAIT
+ */
+function parseFloodWait(error: any): number | null {
+  // Проверяем, есть ли поле seconds в ошибке
+  if (error?.seconds && typeof error.seconds === "number") {
+    return error.seconds;
+  }
+
+  // Проверяем errorMessage на наличие FLOOD_WAIT
+  const errorMessage = error?.errorMessage || error?.message || String(error);
+
+  // Паттерн: "FLOOD_WAIT_818" или "A wait of 818 seconds"
+  const floodWaitMatch = errorMessage.match(/FLOOD_WAIT[_\s](\d+)/i);
+  if (floodWaitMatch) {
+    return parseInt(floodWaitMatch[1], 10);
+  }
+
+  // Паттерн: "A wait of 818 seconds"
+  const waitMatch = errorMessage.match(/wait of (\d+) seconds/i);
+  if (waitMatch) {
+    return parseInt(waitMatch[1], 10);
+  }
+
+  return null;
+}
+
+/**
  * Отправка сообщения в Telegram от имени user-бота
  */
 export async function sendTelegramMessage(
@@ -36,7 +74,7 @@ export async function sendTelegramMessage(
   peerType: "user" | "chat" | "channel",
   text: string,
   accessHash?: string | null
-): Promise<void> {
+): Promise<SendTelegramMessageResult> {
   const account = await getTelegramAccount(accountId, userId);
   if (!account) {
     throw new Error("Telegram account not found");
@@ -100,10 +138,39 @@ export async function sendTelegramMessage(
     }
 
     await client.sendMessage(entity, { message: text });
-  } catch (error: any) {
-    throw new Error(
-      `Failed to send Telegram message: ${error instanceof Error ? error.message : String(error)}`
+
+    console.log(
+      `✅ Сообщение успешно отправлено в Telegram: ${peerId} (${peerType})`
     );
+
+    return {
+      success: true,
+      floodWaitSeconds: null,
+    };
+  } catch (error: any) {
+    // Парсим FLOOD_WAIT из ошибки
+    const floodWaitSeconds = parseFloodWait(error);
+
+    if (floodWaitSeconds !== null) {
+      console.error(
+        `⏸️  FLOOD_WAIT: Чат ${peerId} заблокирован на ${floodWaitSeconds} секунд`
+      );
+      return {
+        success: false,
+        floodWaitSeconds,
+        error: `FLOOD_WAIT: A wait of ${floodWaitSeconds} seconds is required`,
+      };
+    }
+
+    // Другая ошибка
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`❌ Ошибка отправки сообщения в Telegram: ${errorMessage}`);
+
+    return {
+      success: false,
+      floodWaitSeconds: null,
+      error: `Failed to send Telegram message: ${errorMessage}`,
+    };
   } finally {
     await safeDisconnect(client);
   }

@@ -68,7 +68,10 @@ export const DocumentManagementSidebar = ({
           />
         </div>
 
-        <div className="documents-sidebar__section">
+        <div
+          className="documents-sidebar__section"
+          style={{ textAlign: "right" }}
+        >
           <FileUploadSection
             onFileSelect={handleFileSelect}
             uploadMutation={uploadMutation}

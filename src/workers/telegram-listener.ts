@@ -127,14 +127,8 @@ class TelegramListenerManager {
 
     console.log("🔎 Детали входящего сообщения", {
       accountId,
-      messageId: message.id,
-      className: message.className,
-      peer_id: message.peer_id,
-      peerId: message.peerId,
-      toId: message.toId,
-      fromId: message.fromId,
-      chat: message.chat,
-      message: message.message ?? message.text,
+      message:
+        message.message.substring(0, 100) ?? message.text.substring(0, 100),
     });
 
     // Получаем peer_id
@@ -147,12 +141,8 @@ class TelegramListenerManager {
         JSON.stringify(message.peer_id ?? message.peerId)
       );
       console.log("🔍 Структура message:", {
-        id: message.id,
-        className: message.className,
         peer_id: message.peer_id,
         peerId: message.peerId,
-        toId: message.toId,
-        fromId: message.fromId,
       });
       return;
     }

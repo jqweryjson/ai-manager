@@ -457,49 +457,53 @@ RabbitMQ (telegram.send_message) → Sender → Telegram
       - **Telegram Service** (1 Docker контейнер): Listener (слушает сообщения) + Sender (отправляет через RabbitMQ)
       - **RabbitMQ**: Очередь событий (`telegram.events`) и очередь отправки (`telegram.send_message`)
       - **Масштабирование**: Можно запустить несколько `telegram-service` для масштабирования sender'ов
-    - [ ] **Шаг 1: Инфраструктура RabbitMQ**
-      - [ ] Добавить `rabbitmq` в `docker-compose.yml`
-      - [ ] Создать модуль `src/core/rabbitmq.ts` для подключения к RabbitMQ
-      - [ ] Создать модуль `src/core/queue-publisher.ts` для публикации задач
-      - [ ] Exchange: `telegram_events` (direct)
-      - [ ] Queues: `telegram.events` (события от listener), `telegram.send_message` (задачи на отправку)
-    - [ ] **Шаг 2: БД - добавить `next_allowed_at`**
-      - [ ] Миграция: добавить `next_allowed_at TIMESTAMP WITH TIME ZONE NULL` в `telegram_subscriptions`
-      - [ ] Индекс: `CREATE INDEX idx_telegram_subscriptions_next_allowed_at ON telegram_subscriptions(next_allowed_at) WHERE next_allowed_at IS NOT NULL;`
-      - [ ] Обновить TypeScript типы в `telegram-account-postgres.ts`
-      - [ ] Добавить функцию `updateNextAllowedAt(accountId, peerId, seconds)` для обновления времени блокировки
-    - [ ] **Шаг 3: Формат сообщений RabbitMQ**
-      - [ ] Формат задачи для `telegram.events`: `{ type: "send_message", integration: "telegram", account_id, user_id, peer_id, peer_type, access_hash, workspace_id, role_id, message_text }`
-      - [ ] Формат задачи для `telegram.send_message`: `{ type: "send_message", integration: "telegram", account_id, user_id, peer_id, peer_type, access_hash, text, priority, attempts, max_attempts }`
-      - [ ] Метаданные: `attempts`, `max_attempts` (для retry), `priority` (1 = normal, 2 = high)
-    - [ ] **Шаг 4: Обновить `handleTelegramEvent`**
-      - [ ] Добавить проверку `next_allowed_at` перед генерацией ответа (чтобы не тратить LLM токены)
-      - [ ] Если `next_allowed_at > NOW()` → пропустить генерацию, залогировать причину
-      - [ ] Заменить прямой вызов `sendTelegramMessage` на публикацию задачи в RabbitMQ (`telegram.send_message`)
-      - [ ] Добавить логирование публикации задач
-    - [ ] **Шаг 5: Обновить `sendTelegramMessage`**
-      - [ ] Добавить парсинг FLOOD_WAIT из ошибки (регулярное выражение для извлечения времени)
-      - [ ] Возвращать структурированную ошибку с `floodWaitSeconds: number | null`
-      - [ ] Обновить логирование для отладки
-    - [ ] **Шаг 6: Создать Telegram Service (Listener + Sender)**
-      - [ ] Обновить `src/workers/telegram-listener.ts`: вместо POST на Backend API → публикация в RabbitMQ (`telegram.events`)
-      - [ ] Создать `src/workers/telegram-sender.ts`:
-        - [ ] Consumer для `telegram.send_message` (использует `amqp-connection-manager` + `amqplib`)
-        - [ ] Проверка `next_allowed_at` в БД перед отправкой
-        - [ ] Rate limiting: проверка базовых лимитов (1 msg/sec на аккаунт, 1 msg/3sec на чат)
-        - [ ] Вызов `sendTelegramMessage` из `telegram-send.ts`
-        - [ ] При успехе: обновить `next_allowed_at = NOW() + 3 секунды` (базовая задержка)
-        - [ ] При FLOOD_WAIT: парсить время, обновить `next_allowed_at`, requeue с задержкой
-        - [ ] При другой ошибке: retry (до `max_attempts`), затем DLQ или логирование
-      - [ ] Обновить `docker-compose.yml`: переименовать `telegram-listener` → `telegram-service`, добавить запуск sender'а
-    - [ ] **Шаг 7: Backend API Worker для LLM генерации**
-      - [ ] Создать `src/workers/telegram-llm-worker.ts`:
-        - [ ] Consumer для `telegram.events` (события от listener)
-        - [ ] Проверка `next_allowed_at` перед генерацией
-        - [ ] Генерация LLM ответа через `generateChatResponse`
-        - [ ] Публикация задачи в `telegram.send_message` с готовым текстом ответа
-        - [ ] Ограничение количества одновременных генераций (например, 10 worker'ов = 10 одновременных генераций)
-      - [ ] Добавить в `docker-compose.yml` или запускать как часть Backend API
+    - [x] **Шаг 1: Инфраструктура RabbitMQ**
+      - [x] Добавить `rabbitmq` в `docker-compose.yml`
+      - [x] Установить зависимости: `amqp-connection-manager`, `amqplib`, `@types/amqplib`
+      - [x] Создать модуль `src/core/rabbitmq.ts` для подключения к RabbitMQ
+      - [x] Создать модуль `src/core/queue-publisher.ts` для публикации задач
+      - [x] Exchange: `telegram_events` (direct)
+      - [x] Queues: `telegram.events` (события от listener), `telegram.send_message` (задачи на отправку)
+      - [x] Настроить healthcheck для RabbitMQ
+      - [x] Добавить переменную окружения `RABBITMQ_URL` в `telegram-listener`
+    - [x] **Шаг 2: БД - добавить `next_allowed_at`**
+      - [x] Миграция: добавить `next_allowed_at TIMESTAMP WITH TIME ZONE NULL` в `telegram_subscriptions`
+      - [x] Индекс: `CREATE INDEX idx_telegram_subscriptions_next_allowed_at ON telegram_subscriptions(next_allowed_at) WHERE next_allowed_at IS NOT NULL;`
+      - [x] Обновить TypeScript типы в `telegram-account-postgres.ts` (добавлено поле `next_allowed_at: Date | null`)
+      - [x] Добавить функцию `updateNextAllowedAt(accountId, peerId, seconds)` для обновления времени блокировки
+      - [x] Добавить функцию `canSendMessage(accountId, peerId)` для проверки, можно ли отправить сообщение
+    - [x] **Шаг 3: Формат сообщений RabbitMQ**
+      - [x] Формат задачи для `telegram.events`: `{ type: "send_message", integration: "telegram", account_id, user_id, peer_id, peer_type, access_hash, workspace_id, role_id, message_text }`
+      - [x] Формат задачи для `telegram.send_message`: `{ type: "send_message", integration: "telegram", account_id, user_id, peer_id, peer_type, access_hash, text, priority, attempts, max_attempts }`
+      - [x] Метаданные: `attempts`, `max_attempts` (для retry), `priority` (1 = normal, 2 = high)
+    - [x] **Шаг 4: Обновить `handleTelegramEvent`**
+      - [x] Добавить проверку `next_allowed_at` перед генерацией ответа (через `canSendMessage`)
+      - [x] Если чат заблокирован → пропустить генерацию, залогировать причину
+      - [x] Заменить прямой вызов `sendTelegramMessage` на публикацию задачи в RabbitMQ (`telegram.send_message`)
+      - [x] Добавить логирование публикации задач
+    - [x] **Шаг 5: Обновить `sendTelegramMessage`**
+      - [x] Добавить парсинг FLOOD_WAIT из ошибки (функция `parseFloodWait` с регулярными выражениями)
+      - [x] Возвращать структурированный результат `SendTelegramMessageResult` с `floodWaitSeconds: number | null`
+      - [x] Обновить логирование для отладки
+      - [x] Обновить `handleSendMessage` для обработки нового формата возвращаемого значения
+    - [x] **Шаг 6: Создать Telegram Service (Listener + Sender)**
+      - [x] Обновить `src/workers/telegram-listener.ts`: вместо POST на Backend API → публикация в RabbitMQ (`telegram.events`) через `EventSender` → `publishTelegramEvent`
+      - [x] Создать `src/workers/telegram-sender.ts`:
+        - [x] Consumer для `telegram.send_message` (использует `amqp-connection-manager` + `amqplib`)
+        - [x] Проверка `next_allowed_at` в БД перед отправкой (через `canSendMessage`)
+        - [x] Базовый rate limiting: после успешной отправки ставим `next_allowed_at = NOW() + 3 секунды`
+        - [x] Вызов `sendTelegramMessage` из `telegram-send.ts`
+        - [x] При FLOOD_WAIT: парсить время, обновлять `next_allowed_at`, логировать
+        - [ ] (позже) Retry и DLQ для сложных случаев
+      - [x] Обновить `docker-compose.yml`: сервис `telegram-listener` запускает и listener, и sender в одном контейнере
+    - [x] **Шаг 7: Backend API Worker для LLM генерации**
+      - [x] Создать `src/workers/telegram-llm-worker.ts`:
+        - [x] Consumer для `telegram.events` (события от listener)
+        - [x] Проверка `next_allowed_at` перед генерацией (через `canSendMessage`)
+        - [x] Генерация LLM ответа через `generateChatResponse`
+        - [x] Публикация задачи в `telegram.send_message` с готовым текстом ответа
+        - [ ] (позже) Ограничение количества одновременных генераций (например, 10 worker'ов)
+      - [x] Добавить npm-скрипты `dev:llm-worker`, `start:llm-worker` (docker-интеграция позже)
     - [ ] **Шаг 8: Rate Limiting (опционально, для будущего)**
       - [ ] Redis ключи: `tg:<account_id>:last_sent` (timestamp последней отправки на аккаунт)
       - [ ] Redis ключи: `tg:<account_id>:<peer_id>:last_sent` (timestamp последней отправки в чат)

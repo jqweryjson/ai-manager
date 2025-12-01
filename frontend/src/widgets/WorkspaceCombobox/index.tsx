@@ -91,7 +91,7 @@ export const WorkspaceCombobox = ({
                   size="xs"
                   view="ghost"
                   iconLeft={IconLayers}
-                  label="Управление базой знаний"
+                  label="База знаний"
                   onClick={() => handleOpenDocumentsSidebar(selected)}
                   disabled={!selected && !activeWorkspace}
                 />

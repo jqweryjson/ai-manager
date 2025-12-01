@@ -1,6 +1,6 @@
 .documents-sidebar__content {
   height: 100%;
-  padding-right: var(--space-xs);
+  padding: var(--space-s);
   display: flex;
   flex-direction: column;
   gap: var(--space-m);

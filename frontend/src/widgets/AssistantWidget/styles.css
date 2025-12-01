@@ -59,9 +59,11 @@
 
   .assistant-widget__body-container {
     gap: var(--space-s);
+    overflow-y: auto;
   }
 
   .assistant-widget__body {
     gap: var(--space-s);
+    overflow: initial;
   }
 }
