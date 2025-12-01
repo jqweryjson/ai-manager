@@ -20,7 +20,7 @@ export const availableThemes: ThemePreset[] = [
 ];
 
 export function useTheme() {
-  const [theme, setThemeState] = useState<ThemeName>("default");
+  const [theme, setThemeState] = useState<ThemeName>("dark");
 
   useEffect(() => {
     const saved = localStorage.getItem(THEME_STORAGE_KEY) as ThemeName;

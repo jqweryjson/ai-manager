@@ -10,6 +10,7 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "@shared/hooks/useAuth";
 import { useCurrentUserQuery } from "@shared/hooks/useUser";
 import { useTheme } from "@shared/hooks/useTheme";
+import { isTelegramMiniApp } from "@shared/lib/isTelegramMiniApp";
 
 const PAGE_TITLES: Array<{ prefix: string; title: string }> = [
   { prefix: "/app/chat", title: "Чат" },
@@ -31,6 +32,7 @@ export const Header = () => {
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const currentTitle = getPageTitle(location.pathname);
+  const isMiniApp = isTelegramMiniApp();
 
   const toggleTheme = () => {
     setTheme(theme === "default" ? "dark" : "default");
@@ -80,14 +82,17 @@ export const Header = () => {
           avatarUrl={user.picture}
           size="s"
         />
-        <Button
-          onlyIcon
-          iconLeft={() => <IconExit size="s" />}
-          label="Выйти"
-          view="ghost"
-          size="xs"
-          onClick={logout}
-        />
+        {/* В Telegram Mini App кнопку "Выйти" не показываем */}
+        {!isMiniApp && (
+          <Button
+            onlyIcon
+            iconLeft={() => <IconExit size="s" />}
+            label="Выйти"
+            view="ghost"
+            size="xs"
+            onClick={logout}
+          />
+        )}
       </Layout>
     </Layout>
   );
