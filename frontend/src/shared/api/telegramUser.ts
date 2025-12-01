@@ -34,9 +34,9 @@ export async function startConnection(params: {
       Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
     },
     body: JSON.stringify({
-      api_id: params.apiId.trim(),
-      api_hash: params.apiHash.trim(),
-      phone: params.phone.trim(),
+      api_id: params?.apiId?.trim(),
+      api_hash: params?.apiHash?.trim(),
+      phone: params?.phone?.trim(),
     } satisfies StartConnectionRequest),
   });
 
