@@ -10,6 +10,7 @@ import { handleSubscriptions } from "./handlers/subscriptions.js";
 import { handleGetSubscriptions } from "./handlers/getSubscriptions.js";
 import { handleTelegramEvent } from "./handlers/events.js";
 import { handleSendMessage } from "./handlers/send.js";
+import { handleReloadAccount } from "./handlers/listenerControl.js";
 
 export async function telegramUserRoutes(fastify: FastifyInstance) {
   // Авторизация
@@ -88,5 +89,12 @@ export async function telegramUserRoutes(fastify: FastifyInstance) {
   // Внутренние события (без аутентификации - только для Listener)
   fastify.post("/internal/tg-user/events", async (request, reply) =>
     handleTelegramEvent(fastify, request, reply)
+  );
+
+  // Внутренний control API для Telegram Service (reload аккаунта)
+  fastify.post(
+    "/internal/tg-user/listener/reload-account",
+    async (request, reply) =>
+      handleReloadAccount(fastify, request as any, reply)
   );
 }

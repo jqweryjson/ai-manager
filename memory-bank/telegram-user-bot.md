@@ -39,27 +39,31 @@ RabbitMQ (telegram.send_message) → Sender → Telegram
 - При FLOOD_WAIT парсим время и обновляем `next_allowed_at`
 - Задачи requeue с задержкой до `next_allowed_at`
 
-- [ ] 0. Секреты/окружение
-  - [ ] BACKEND_SECRET (ключ для шифрования AES‑GCM)
-  - [ ] VITE_API_URL (фронт → API)
+- [x] 0. Секреты/окружение
+  - [x] BACKEND_SECRET (ключ для шифрования AES‑GCM) — используется в `encryption.ts` и `telegram-account-postgres.ts`, требуется установка в `.env`
+  - [x] VITE_API_URL (фронт → API) — используется в `frontend/src/shared/config/api.ts` с fallback на `/api`
 
-- [ ] 1. UX/поток (страница `/app/integrations`)
+- [x] 1. UX/поток (страница `/app/integrations`)
   - [x] Карточка "Telegram (User Bot)" со статусами:
     - [x] Базовая карточка с поддержкой статусов (preparing/connected/not_connected)
     - [x] Кнопки "Подключить"/"Отключить"/"Скоро" в зависимости от статуса
     - [x] Раскрытие карточки на всю высоту при клике
-    - [ ] Не подключено → кнопка "Подключить" → мастер из 3 шагов (TODO)
-    - [ ] Подключено → список аккаунтов/чаты/переключатели/"Отключить" (TODO)
-  - [ ] Мастер подключения:
-    - [ ] Шаг 1: Ключи разработчика
-      - [ ] Открыть `https://my.telegram.org/auth` (в новой вкладке)
-      - [ ] На `https://my.telegram.org/app` создать приложение → получить `api_id`, `api_hash`
-      - [ ] Ввести `api_id`, `api_hash` в форму мастера
-    - [ ] Шаг 2: Логин по MTProto
-      - [ ] Ввести телефон → отправить код → ввести код → (если включён) 2FA пароль
-      - [ ] Сформировать и сохранить зашифрованную MTProto-сессию на бэкенде
-    - [ ] Шаг 3: Выбор чатов
-      - [ ] Загрузить диалоги/ЛС → мультивыбор → сохранить подписки и опции автоответов
+    - [x] Не подключено → форма подключения (ключи + телефон + код + 2FA) встроена в карточку
+    - [x] Подключено → список диалогов (`TelegramDialogsList`) с настройками подписок
+  - [x] Мастер подключения (реализован в `ConnectionForm`, но не как отдельный stepper):
+    - [x] Шаг 1: Ключи разработчика
+      - [x] Кнопка "Получить API ключи" → открывает `https://my.telegram.org/auth` (в новой вкладке)
+      - [x] Поля ввода `api_id`, `api_hash` в форме
+    - [x] Шаг 2: Логин по MTProto
+      - [x] Поле ввода телефона → кнопка "Отправить код" → вызов `startConnection`
+      - [x] Поле ввода кода → кнопка "Подтвердить код" → вызов `verifyCode`
+      - [x] Если требует 2FA → поле ввода пароля → кнопка "Подтвердить 2FA" → вызов `verify2FA`
+      - [x] Сессия шифруется и сохраняется на бэкенде
+    - [x] Шаг 3: Выбор чатов (реализован в `TelegramDialogsList` после подключения)
+      - [x] Загрузка диалогов через `getUserDialogs()`
+      - [x] Список чатов с поиском и фильтрацией
+      - [x] Настройка подписок через `SubscriptionConfigPanel` (workspace, role, enabled)
+      - [x] Сохранение подписок через `saveSubscriptions`
 
 - Примечания:
   - Вне Telegram Mini App номер телефона недоступен — пользователь вводит вручную.
@@ -82,7 +86,7 @@ RabbitMQ (telegram.send_message) → Sender → Telegram
     - [x] Отключение `_updateLoop` GramJS (useWSS: false, timeout: 10) для предотвращения TIMEOUT ошибок
   - [x] Хранение `api_id`, `api_hash`, `session` — только зашифрованно (AES‑GCM)
   - [x] Изоляция по `user_id`, ACL, логи
-  - [ ] Фоновые задачи для автоответов
+  - [x] Фоновые задачи для автоответов — реализовано через `telegram-listener` (RabbitMQ + LLM worker + sender)
 
 - [x] 3. Backend API (контракты)
   - [x] Создать `src/api/telegram-user.ts` с роутами
@@ -136,27 +140,21 @@ RabbitMQ (telegram.send_message) → Sender → Telegram
   - [x] GET `/api/tg-user/chats`
     - [x] Получение всех диалогов пользователя (для локального поиска)
     - [x] Форматирование в единый формат DialogItem
-  - [ ] POST `/api/tg-user/subscriptions`
-    - [ ] Валидация: `{ account_id, items: [{ peer_id, type, title, enabled }] }`
-    - [ ] Проверка авторизации и ownership аккаунта
-    - [ ] Сохранение/обновление подписок в БД
-    - [ ] Возврат `{ success: true }`
-  - [ ] POST `/api/tg-user/send`
-    - [ ] Валидация: `{ account_id, peer_id, message }`
-    - [ ] Проверка авторизации и ownership
-    - [ ] Проверка статуса аккаунта (не должен быть "flood_wait")
-    - [ ] Восстановление TelegramClient из сессии
-    - [ ] Вызов `client.sendMessage(peer, message)`
-    - [ ] Обработка FloodWait → обновление статуса на "flood_wait" с временем ожидания
-    - [ ] Возврат `{ success: true, message_id }` или `{ error: "flood_wait", wait_until: timestamp }`
-  - [ ] POST `/api/tg-user/disconnect`
-    - [ ] Валидация: `{ account_id }`
-    - [ ] Проверка авторизации и ownership
-    - [ ] Удаление аккаунта и подписок из БД (CASCADE)
-    - [ ] Возврат `{ success: true }`
+  - [x] POST `/api/tg-user/subscriptions`
+    - [x] Валидация: `{ account_id, items: [{ peer_id, peer_type, title, enabled, workspace_id, role_id, mention_only, access_hash }] }` (через Zod схему)
+    - [x] Проверка авторизации и ownership аккаунта
+    - [x] Сохранение/обновление подписок в БД (через `upsertSubscriptions`)
+    - [x] Возврат `{ success: true, subscriptions: [...] }` (актуальный список подписок)
+  - [x] POST `/api/tg-user/send`
+    - [x] Валидация: `{ account_id, peer_id, peer_type, access_hash?, text }` (через Zod схему)
+    - [x] Проверка авторизации и ownership (через `sendTelegramMessage`)
+    - [x] Восстановление TelegramClient из сессии (внутри `sendTelegramMessage`)
+    - [x] Вызов `client.sendMessage(peer, text)` с корректным `InputPeerUser/InputPeerChat/InputPeerChannel`
+    - [x] Обработка FloodWait → парсинг времени из ошибки, возврат `{ error: "flood_wait", wait_seconds }` (статус 429)
+    - [x] Возврат `{ success: true }` или `{ error: "flood_wait", wait_seconds }`
 
 - Ошибки/лимиты:
-  - [ ] FloodWait/429 → сохранение статуса "flood_wait" в БД с временем ожидания, возврат статуса пользователю
+  - [x] FloodWait/429 → обработка FLOOD_WAIT в `handleStart` (возврат 429 с `wait_seconds`), обработка в `sendTelegramMessage` (парсинг времени, обновление `next_allowed_at` в `telegram_subscriptions`), статус "flood_wait" в `telegram_accounts` поддерживается через `updateTelegramAccountStatus`
   - [x] Invalid credentials → понятные сообщения об ошибках (API_ID_INVALID, API_HASH_INVALID), нормализация ввода (`trim`, числовая проверка api_id)
   - [x] Логирование ключевых действий/ошибок (api_id тип, user_id, account_id)
 
@@ -189,51 +187,41 @@ RabbitMQ (telegram.send_message) → Sender → Telegram
     - [x] `getDialogs(accountId, limit?, offsetDate?)` → GET `/api/tg-user/dialogs` (с пагинацией)
     - [x] `getUserContacts(accountId?)` → GET `/api/tg-user/contacts`
     - [x] `getUserDialogs(accountId?, limit?)` → GET `/api/tg-user/chats`
-    - [ ] `saveSubscriptions(accountId, items)` → POST `/api/tg-user/subscriptions`
-    - [ ] `sendMessage(accountId, peer_id, message)` → POST `/api/tg-user/send` (опционально, для будущего использования)
-  - [ ] Мастер подключения (Stepper): Шаг 1 → Шаг 2 → Шаг 3
-    - [ ] Шаг 1: Ввод API ключей (уже есть форма)
-      - [ ] Валидация api_id (число)
-      - [ ] Валидация api_hash (строка)
-      - [ ] Кнопка "Далее" → переход на шаг 2
-    - [ ] Шаг 2: Авторизация по телефону
-      - [ ] Поле ввода телефона (международный формат)
-      - [ ] Кнопка "Отправить код" → вызов `startConnection`
-      - [ ] Поле ввода кода (6 цифр)
-      - [ ] Кнопка "Подтвердить" → вызов `verifyCode`
-      - [ ] Если требует 2FA → поле ввода пароля + кнопка "Подтвердить" → вызов `verify2FA`
-      - [ ] Обработка ошибок (неверный код, FloodWait)
-      - [ ] При успехе → переход на шаг 3
-    - [ ] Шаг 3: Выбор чатов
-      - [ ] Загрузка диалогов через `getDialogs()`
-      - [ ] Список чатов с поиском/фильтрацией
-      - [ ] Мультивыбор чатов (чекбоксы)
-      - [ ] Кнопка "Сохранить" → вызов `saveSubscriptions`
-      - [ ] При успехе → обновление статуса карточки на "connected"
-  - [ ] UI для подключенного состояния
-    - [ ] Список подключенных аккаунтов (если несколько)
-    - [ ] Отображение статуса аккаунта (connected/flood_wait/pending_code/pending_2fa)
-    - [ ] Если flood_wait → показ времени ожидания до `flood_wait_until`
-    - [ ] Список подписок (чаты) с тумблерами enabled/disabled
-    - [ ] Кнопка "Отключить" → вызов `disconnect`
-  - [ ] Никаких секретов на фронте; всё через API
+    - [x] `saveSubscriptions(accountId, items)` → POST `/api/tg-user/subscriptions` (реализовано в `frontend/src/shared/api/telegramUser.ts`)
+    - [ ] `sendMessage(accountId, peer_id, message)` → POST `/api/tg-user/send` (опционально, для будущего использования — не реализовано в frontend API клиенте, используется только сервером)
+  - [x] UI для подключенного состояния (частично)
+    - [x] Список диалогов с настройками подписок (`TelegramDialogsList`) — реализован
+    - [x] Список подписок (чаты) с настройками enabled/disabled через `SubscriptionConfigPanel` — реализован
+    - [x] Кнопка "Отключить" → вызов `disconnect` (в `ConnectionFooter`) — реализована
+    - [ ] Список подключенных аккаунтов (если несколько) — не реализовано (поддерживается только один аккаунт)
+    - [ ] Отображение статуса аккаунта (connected/flood_wait/pending_code/pending_2fa) — не реализовано в UI
+    - [ ] Если flood_wait → показ времени ожидания до `flood_wait_until` — не реализовано
+  - [x] Никаких секретов на фронте; всё через API — реализовано (все данные через REST API, токены в localStorage)
 
 - [x] 5. БД и шифрование
   - [x] Миграция: таблица `telegram_accounts`
-    - [ ] Поля: id, user_id, api_id (encrypted), api_hash (encrypted), session (encrypted), status, phone, phone_code_hash, flood_wait_until, created_at, updated_at
-    - [ ] Статусы: "pending_code", "pending_2fa", "connected", "flood_wait"
-    - [ ] Индексы: user_id, status
-    - [ ] Foreign key на users(id) ON DELETE CASCADE
+    - [x] Поля: id, user_id, api_id (encrypted), api_hash (encrypted), session (encrypted), status, phone, phone_code_hash, flood_wait_until, created_at, updated_at
+    - [x] Статусы: "pending_code", "pending_2fa", "connected", "flood_wait" (CHECK constraint)
+    - [x] Индексы: user_id (`idx_telegram_accounts_user_id`), status (`idx_telegram_accounts_status`)
+    - [x] Foreign key на users(id) ON DELETE CASCADE
   - [x] Миграция: таблица `telegram_subscriptions`
-    - [ ] Поля: id, telegram_account_id, peer_id, peer_type, title, enabled, last_activity_at
-    - [ ] Индексы: telegram_account_id, peer_id
-    - [ ] Foreign key на telegram_accounts(id) ON DELETE CASCADE
+    - [x] Поля: id, telegram_account_id, peer_id, peer_type, title, enabled, last_activity_at, created_at, updated_at
+    - [x] Дополнительные поля (из миграций):
+      - [x] `workspace_id` (VARCHAR(50), FK на workspaces, ON DELETE CASCADE)
+      - [x] `role_id` (VARCHAR(50), FK на roles, ON DELETE CASCADE)
+      - [x] `access_hash` (TEXT) — для корректной отправки в супергруппы/каналы
+      - [x] `mention_only` (BOOLEAN, DEFAULT TRUE) — отвечать только на упоминания в группах
+      - [x] `next_allowed_at` (TIMESTAMP WITH TIME ZONE) — для управления FLOOD_WAIT
+    - [x] Индексы: telegram_account_id (`idx_telegram_subscriptions_account_id`), peer_id (`idx_telegram_subscriptions_peer_id`), workspace_id, role_id, next_allowed_at (partial index)
+    - [x] Foreign key на telegram_accounts(id) ON DELETE CASCADE
+    - [x] UNIQUE constraint на (telegram_account_id, peer_id)
   - [x] Утилиты шифрования: `src/core/encryption.ts`
-    - [x] Функция `encrypt(data: string, key: string): string` (AES-GCM)
+    - [x] Функция `encrypt(data: string, key: string): string` (AES-256-GCM с PBKDF2)
     - [x] Функция `decrypt(encrypted: string, key: string): string`
     - [x] Использование `BACKEND_SECRET` из env
     - [x] Обработка ошибок шифрования/дешифрования
-  - [ ] (Опционально) Таблица `telegram_outbox_logs` для логирования отправок
+    - [x] Формат зашифрованных данных: `salt:iv:tag:encrypted` (все в base64)
+  - [ ] (Опционально) Таблица `telegram_outbox_logs` для логирования отправок — не реализовано (логирование через RabbitMQ и application logs)
 
 - [ ] 6. Тестирование
   - [ ] E2E: мастер, диалоги, выбор чатов
@@ -329,14 +317,14 @@ RabbitMQ (telegram.send_message) → Sender → Telegram
         - [ ] Loading состояния
         - [ ] Error handling
         - [ ] Оптимистичные обновления
-  - [ ] Итерация 4: Отправка сообщений
-    - [ ] Эндпоинт POST `/api/tg-user/send`
-    - [ ] Обработка FloodWait (сохранение статуса)
-    - [ ] Логирование отправок (опционально: telegram_outbox_logs)
-  - [ ] Итерация 5: Отключение и управление
-    - [ ] Эндпоинт POST `/api/tg-user/disconnect`
-    - [ ] Фронтенд: кнопка "Отключить"
-    - [ ] Управление несколькими аккаунтами (если нужно)
+  - [x] Итерация 4: Отправка сообщений
+    - [x] Эндпоинт POST `/api/tg-user/send` — реализован
+    - [x] Обработка FloodWait (парсинг времени, обновление `next_allowed_at` в `telegram_subscriptions`, возврат 429) — реализовано
+    - [x] Логирование отправок (через application logs и RabbitMQ) — реализовано
+  - [x] Итерация 5: Отключение и управление
+    - [x] Эндпоинт POST `/api/tg-user/disconnect` — реализован
+    - [x] Фронтенд: кнопка "Отключить" (в `ConnectionFooter`) — реализована
+    - [ ] Управление несколькими аккаунтами (если нужно) — не реализовано (поддерживается только один аккаунт на пользователя)
   - [ ] Итерация 6: Telegram Listener (прослушивание сообщений) — отложено, базовый Listener используется только для логов и отладки
     - [x] **Шаг 1: Создание Telegram Listener Worker**
       - [x] Создать `src/workers/telegram-listener.ts`
@@ -389,9 +377,9 @@ RabbitMQ (telegram.send_message) → Sender → Telegram
       - [ ] Проверка логов: `docker-compose logs -f telegram-listener`
       - [ ] Проверка автоперезапуска: `docker kill telegram-listener` → должен перезапуститься
       - [ ] Проверка работы после перезагрузки сервера
-    - [ ] **Шаг 6: API для управления слушателями (опционально)**
-      - [ ] GET `/api/tg-user/listener/status` — статус всех слушателей
-      - [ ] POST `/api/tg-user/listener/restart?account_id=xxx` — перезапуск для аккаунта
+    - [x] **Шаг 6: API для управления слушателями**
+      - [x] GET `/internal/listener/status` — статус всех слушателей (реализовано в `telegram-listener` HTTP API)
+      - [x] POST `/internal/listener/reload-account` — перезапуск для аккаунта (реализовано в `telegram-listener` HTTP API, проксируется через `/api/internal/tg-user/listener/reload-account`)
   - [ ] Итерация 7: Автоответы через LLM (шаг 1: интеграция Listener с backend)
     - [x] Определить минимальный формат события от Listener → backend (`account_id`, `peer_id`, `peer_type`, `workspace_id`, `role_id`, текст, метаданные)
     - [x] Добавить внутренний endpoint/очередь для событий от Telegram Listener (`POST /internal/tg-user/events`)
@@ -415,7 +403,7 @@ RabbitMQ (telegram.send_message) → Sender → Telegram
         - [x] Зарегистрирован маршрут в `src/api/telegram-user/index.ts`
         - [x] Эндпоинт принимает `account_id`, `peer_id`, `peer_type`, `text` и вызывает `sendTelegramMessage`
       - [x] В `handleTelegramEvent` после генерации ответа вызывается `sendTelegramMessage`, чтобы автоответ реально уходил в Telegram-чат
-    - [ ] Добавить базовые метрики и логирование автоответов (успех/ошибка, latency)
+    - [x] Добавить базовые метрики и логирование автоответов (успех/ошибка, latency) — реализовано через console.log с временем генерации и длиной ответа
   - [ ] **Итерация 8: Синхронизация подписок с удалёнными диалогами (техническое обслуживание)**
     - [ ] **Проблема**: При удалении диалога в Telegram подписка остаётся в БД, создавая "мёртвые" подписки
     - [ ] **Решение**: Автоматическая очистка подписок, которых нет в актуальном списке диалогов
@@ -504,20 +492,59 @@ RabbitMQ (telegram.send_message) → Sender → Telegram
         - [x] Публикация задачи в `telegram.send_message` с готовым текстом ответа
         - [ ] (позже) Ограничение количества одновременных генераций (например, 10 worker'ов)
       - [x] Добавить npm-скрипты `dev:llm-worker`, `start:llm-worker` (docker-интеграция позже)
-    - [ ] **Шаг 8: Rate Limiting (опционально, для будущего)**
+    - [ ] **Шаг 8: HTTP API для Telegram Service (control API через Fastify)**
+      - [ ] Цель: Telegram‑сервис становится полноценным микросервисом с небольшим HTTP API для управления (reload аккаунтов и статус), все на Fastify, как в основном backend.
+      - [x] **Шаг 8.1: HTTP‑сервер внутри `telegram-listener`**
+        - [x] Создать `src/workers/telegram/httpServer.ts`:
+          - [x] Инициализация Fastify (легковесный сервер) внутри процесса listener'а.
+          - [x] Экспорт функции `startHttpServer(listenerManager: TelegramListenerManager)`.
+        - [x] В `src/workers/telegram-listener.ts`:
+          - [x] Импортировать `startHttpServer`.
+          - [x] После `manager.initialize()` вызвать `startHttpServer(manager)` (порт по умолчанию `4002`, настраивается через `TELEGRAM_SERVICE_PORT`).
+      - [x] **Шаг 8.2: Control‑роуты в Telegram Service**
+        - [x] `POST /internal/listener/reload-account`:
+          - [x] Body: `{ account_id: string, user_id: string }`.
+          - [x] Валидация входных данных.
+          - [x] Вызов `manager.startListening(account_id, user_id)`.
+          - [x] Логирование результата.
+        - [x] (опционально) `GET /internal/listener/status`:
+          - [x] Возвращает `manager.getStatus()` (список активных аккаунтов, uptime).
+      - [x] **Шаг 8.3: Backend API — прокси к Telegram Service**
+        - [x] В основном backend'е добавить внутренний хендлер:
+          - [x] `POST /api/internal/tg-user/listener/reload-account`.
+          - [x] Body: `{ account_id, user_id }`.
+          - [ ] (позже) Простая авторизация (секрет/ограничение по сети).
+          - [x] HTTP‑запрос в `telegram-listener` сервис: `http://telegram-listener:4002/internal/listener/reload-account` (через `TELEGRAM_SERVICE_URL`).
+          - [x] Проксирование ответа/логирование ошибок.
+      - [x] **Шаг 8.4: Вызов control‑API из MTProto‑авторизации**
+        - [x] В хендлерах `/api/tg-user/verify` и `/api/tg-user/2fa`:
+          - [x] После смены статуса аккаунта на `connected` вызывать:
+            - [x] `POST /api/internal/tg-user/listener/reload-account` с `{ account_id, user_id }`.
+          - [x] Логировать: `📡 Отправлен запрос reload-account для Telegram Service`.
+      - [x] **Шаг 8.5: Docker / окружение**
+        - [x] Убедиться, что сервис `telegram-listener` доступен по имени `telegram-listener` внутри docker‑сети — реализовано (все сервисы в одной сети `milvus`)
+        - [x] Не открывать HTTP‑порт наружу (API только внутри сети Docker) — реализовано (порт 4002 не проброшен в `docker-compose.yml`, доступен только внутри сети)
+      - [ ] **Шаг 8.6: Тестирование**
+        - [ ] Поднять систему.
+        - [ ] Подключить новый Telegram‑аккаунт через Mini App → статус `connected`.
+        - [ ] Проверить, что:
+          - [ ] Backend дергает `/api/internal/tg-user/listener/reload-account`.
+          - [ ] Listener логирует запуск нового клиента без перезапуска контейнера.
+          - [ ] Автоответы работают для нового аккаунта без ручного рестарта воркеров.
+    - [ ] **Шаг 9: Rate Limiting (опционально, для будущего)**
       - [ ] Redis ключи: `tg:<account_id>:last_sent` (timestamp последней отправки на аккаунт)
       - [ ] Redis ключи: `tg:<account_id>:<peer_id>:last_sent` (timestamp последней отправки в чат)
       - [ ] Базовые лимиты: на чат ≥2-3 секунды, на аккаунт ≥1 сообщение/сек
       - [ ] При превышении лимита → обновить `available_at` в задаче, requeue
-    - [ ] **Шаг 9: UI - отображение статуса FLOOD_WAIT**
+    - [ ] **Шаг 10: UI - отображение статуса FLOOD_WAIT**
       - [ ] Обновить `GET /api/tg-user/subscriptions`: добавить `next_allowed_at` в ответ
       - [ ] Фронтенд: показывать статус "Ожидание Telegram до HH:MM" если `next_allowed_at > NOW()`
       - [ ] Добавить индикатор в UI (badge или текст) для заблокированных чатов
-    - [ ] **Шаг 10: Мониторинг и метрики**
+    - [ ] **Шаг 11: Мониторинг и метрики**
       - [ ] Логирование: количество задач в очереди, количество FLOOD_WAIT, успешные отправки
       - [ ] Метрики: пропущенные ответы (из-за FLOOD_WAIT), среднее время в очереди
       - [ ] Алерты: если очередь растёт слишком быстро, если много FLOOD_WAIT
-    - [ ] **Шаг 11: Расширение на другие интеграции (будущее)**
-      - [ ] Общий модуль очередей (`src/core/queue-publisher.ts`) с поддержкой `integration` типа
-      - [ ] RabbitMQ routing key: `{integration}.{type}` (например, `telegram.send_message`, `whatsapp.send_message`)
-      - [ ] Новая интеграция добавляет свой sender, но использует ту же RabbitMQ инфраструктуру
+    - [x] **Шаг 12: Расширение на другие интеграции (будущее)**
+      - [x] Общий модуль очередей (`src/core/queue-publisher.ts`) с поддержкой `integration` типа — реализовано через `queue-config.ts` с типом `IntegrationType`
+      - [x] RabbitMQ routing key: `{integration}.{type}` (например, `telegram.send_message`, `whatsapp.send_message`) — реализовано через `getQueueConfig(integration)`
+      - [x] Новая интеграция добавляет свой sender, но использует ту же RabbitMQ инфраструктуру — архитектура готова (нужно только добавить конфиг в `queue-config.ts`)

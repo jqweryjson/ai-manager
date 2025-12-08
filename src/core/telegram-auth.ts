@@ -75,3 +75,50 @@ export function parseTelegramInitData(
     return null;
   }
 }
+
+/**
+ * Данные пользователя от Telegram Login Widget
+ */
+export interface TelegramLoginWidgetData {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  auth_date: number;
+  hash: string;
+}
+
+/**
+ * Валидация данных от Telegram Login Widget
+ * @param data - данные пользователя от виджета
+ * @param botToken - токен бота из TELEGRAM_BOT_TOKEN
+ * @returns true если подпись валидна
+ */
+export function validateTelegramLoginWidget(
+  data: TelegramLoginWidgetData,
+  botToken: string
+): boolean {
+  try {
+    // Создаём data-check-string из всех полей кроме hash
+    const { hash, ...dataWithoutHash } = data;
+    const dataCheckString = Object.entries(dataWithoutHash)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${key}=${value}`)
+      .join("\n");
+
+    // Вычисляем SHA256 хэш токена бота
+    const secretKey = crypto.createHash("sha256").update(botToken).digest();
+
+    // Вычисляем HMAC-SHA256
+    const calculatedHash = crypto
+      .createHmac("sha256", secretKey)
+      .update(dataCheckString)
+      .digest("hex");
+
+    // Сравниваем хеши
+    return calculatedHash === hash;
+  } catch (error) {
+    return false;
+  }
+}

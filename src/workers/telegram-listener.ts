@@ -3,6 +3,7 @@ import { TelegramClientManager } from "./telegram/clientManager.js";
 import { MessageProcessor } from "./telegram/messageProcessor.js";
 import { EventSender } from "./telegram/eventSender.js";
 import type { TelegramClientInfo } from "./telegram/types.js";
+import { startHttpServer } from "./telegram/httpServer.js";
 
 class TelegramListenerManager {
   private clients = new Map<string, TelegramClientInfo>();
@@ -211,11 +212,21 @@ class TelegramListenerManager {
 // Создаем единственный экземпляр менеджера
 const manager = new TelegramListenerManager();
 
+async function bootstrap() {
+  try {
+    await manager.initialize();
+    await startHttpServer(manager);
+  } catch (error) {
+    console.error(
+      "💥 Критическая ошибка при запуске Telegram Listener:",
+      error
+    );
+    process.exit(1);
+  }
+}
+
 // Инициализация при старте
-manager.initialize().catch(error => {
-  console.error("💥 Критическая ошибка при инициализации:", error);
-  process.exit(1);
-});
+bootstrap();
 
 // Graceful shutdown при SIGTERM (Docker stop)
 process.on("SIGTERM", async () => {

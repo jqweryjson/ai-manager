@@ -161,6 +161,35 @@ export async function handleVerify(
       `✅ Telegram аккаунт подключен: ${account_id} для пользователя ${request.userId}`
     );
 
+    // Сигнализируем Telegram Service, чтобы он начал слушать новый аккаунт
+    try {
+      const backendPort = Number(process.env.BACKEND_PORT) || 4001;
+      const backendUrl =
+        process.env.BACKEND_INTERNAL_URL || `http://localhost:${backendPort}`;
+
+      await fetch(
+        `${backendUrl}/api/internal/tg-user/listener/reload-account`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            account_id,
+            user_id: request.userId,
+          }),
+        }
+      );
+
+      fastify.log.info(
+        `📡 Отправлен запрос reload-account для Telegram Service (verify): ${account_id}`
+      );
+    } catch (notifyError) {
+      fastify.log.error(
+        `⚠️  Не удалось отправить reload-account для Telegram Service (verify): ${notifyError}`
+      );
+    }
+
     return {
       success: true,
       account_id,
@@ -219,6 +248,35 @@ export async function handle2FA(
     fastify.log.info(
       `✅ Telegram аккаунт подключен с 2FA: ${account_id} для пользователя ${request.userId}`
     );
+
+    // Сигнализируем Telegram Service, чтобы он начал слушать новый аккаунт
+    try {
+      const backendPort = Number(process.env.BACKEND_PORT) || 4001;
+      const backendUrl =
+        process.env.BACKEND_INTERNAL_URL || `http://localhost:${backendPort}`;
+
+      await fetch(
+        `${backendUrl}/api/internal/tg-user/listener/reload-account`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            account_id,
+            user_id: request.userId,
+          }),
+        }
+      );
+
+      fastify.log.info(
+        `📡 Отправлен запрос reload-account для Telegram Service (2FA): ${account_id}`
+      );
+    } catch (notifyError) {
+      fastify.log.error(
+        `⚠️  Не удалось отправить reload-account для Telegram Service (2FA): ${notifyError}`
+      );
+    }
 
     return {
       success: true,

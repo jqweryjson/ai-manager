@@ -5,6 +5,7 @@ import { Text } from "@consta/uikit/Text";
 import { Card } from "@consta/uikit/Card";
 import { LoginForm } from "@/features/Auth/LoginForm";
 import { GoogleAuthButton } from "@/features/Auth/GoogleAuth";
+import { TelegramAuthButton } from "@/features/Auth/TelegramAuth";
 import { useAuth } from "@shared/hooks/useAuth";
 import type { LoginFormData } from "@shared/lib/validation";
 
@@ -69,6 +70,7 @@ export const AuthPage = () => {
             />
           </div>
 
+          <TelegramAuthButton />
           <GoogleAuthButton />
         </div>
       </Card>

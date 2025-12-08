@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   milvus-standalone:
     image: milvusdb/milvus:v2.4.0
@@ -105,7 +103,7 @@ services:
       - .env
     ports:
       - "1080:1080"
-    command: ss-local -s 188.214.37.76 -p 8443 -k "EkdhE1PYezUdzNcy3fVHZW" -m chacha20-ietf-poly1305 -b 0.0.0.0 -l 1080 -u
+    command: ss-local -s 45.151.72.236 -p 443 -k "1OeSSwOd3zFddpeiastQLH" -m chacha20-ietf-poly1305 -b 0.0.0.0 -l 1080 -u
     restart: unless-stopped
     networks:
       - milvus
@@ -156,6 +154,10 @@ services:
       EMBEDDINGS_WORKER_URL: http://host.docker.internal:9040
       MILVUS_HOST: milvus-standalone:19530
       GROQ_SOCKS_PROXY: socks5://shadowsocks-proxy:1080
+      TELEGRAM_SERVICE_PORT: "4002"
+    # ports: блок можно убрать, чтобы не светить порт наружу когда вынесем в контейнер
+    ports:
+      - "4002:4002"   # HTTP API Telegram Service наружу на хост
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
