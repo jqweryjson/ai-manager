@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { API_BASE_URL } from "@shared/config/api";
 import { useAuth } from "@shared/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
 import { isTelegramMiniApp } from "@shared/lib/isTelegramMiniApp";
 
 interface TelegramLoginWidgetUser {
@@ -23,7 +22,6 @@ declare global {
 
 export const TelegramAuthButton = () => {
   const { login } = useAuth();
-  const navigate = useNavigate();
   const widgetRef = useRef<HTMLDivElement>(null);
   const processed = useRef(false);
 
@@ -55,7 +53,9 @@ export const TelegramAuthButton = () => {
 
         const data = await response.json();
         login(data.accessToken, data.refreshToken);
-        navigate("/app", { replace: true });
+        // Используем window.location.href для полной перезагрузки,
+        // чтобы гарантировать обновление состояния и избежать гонки условий
+        window.location.href = "/app/chat";
       } catch (error) {
         console.error("Telegram auth error:", error);
         alert("Ошибка авторизации через Telegram");
@@ -67,7 +67,7 @@ export const TelegramAuthButton = () => {
     return () => {
       window.onTelegramAuth = undefined;
     };
-  }, [login, navigate, isMiniApp]);
+  }, [login, isMiniApp]);
 
   useEffect(() => {
     // Не инициализируем виджет внутри Mini App
@@ -106,5 +106,5 @@ export const TelegramAuthButton = () => {
     return null;
   }
 
-  return <div ref={widgetRef} style={{ width: "100%" }} />;
+  return <div ref={widgetRef} />;
 };

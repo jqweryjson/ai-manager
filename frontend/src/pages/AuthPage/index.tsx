@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { Modal } from "@consta/uikit/Modal";
 import { Text } from "@consta/uikit/Text";
 import { Card } from "@consta/uikit/Card";
-import { LoginForm } from "@/features/Auth/LoginForm";
+// TODO
+// import { LoginForm } from "@/features/Auth/LoginForm";
 import { GoogleAuthButton } from "@/features/Auth/GoogleAuth";
 import { TelegramAuthButton } from "@/features/Auth/TelegramAuth";
 import { useAuth } from "@shared/hooks/useAuth";
-import type { LoginFormData } from "@shared/lib/validation";
+// import type { LoginFormData } from "@shared/lib/validation";
+import { Layout } from "@consta/uikit/Layout";
 
 export const AuthPage = () => {
   const { isAuthenticated } = useAuth();
@@ -15,21 +17,16 @@ export const AuthPage = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/app", { replace: true });
+      navigate("/app/chat", { replace: true });
     }
   }, [isAuthenticated, navigate]);
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleLogin = (_data: LoginFormData) => {
-    // TODO: Реализовать логин через email/password
-  };
 
   return (
     <Modal isOpen onClickOutside={() => {}} onEsc={() => {}}>
       <Card
         verticalSpace="2xl"
         horizontalSpace="2xl"
-        style={{ minWidth: "400px", maxWidth: "500px" }}
+        style={{ maxWidth: "500px" }}
       >
         <div
           style={{
@@ -42,11 +39,10 @@ export const AuthPage = () => {
             Вход в систему
           </Text>
 
-          <LoginForm onSubmit={handleLogin} />
+          {/* <LoginForm onSubmit={handleLogin} /> */}
 
-          <div
+          <Layout
             style={{
-              display: "flex",
               alignItems: "center",
               gap: "var(--space-m)",
             }}
@@ -59,7 +55,7 @@ export const AuthPage = () => {
               }}
             />
             <Text size="s" view="secondary">
-              или
+              Войти через
             </Text>
             <div
               style={{
@@ -68,10 +64,18 @@ export const AuthPage = () => {
                 background: "var(--color-bg-border)",
               }}
             />
-          </div>
+          </Layout>
 
-          <TelegramAuthButton />
-          <GoogleAuthButton />
+          <Layout
+            style={{
+              alignItems: "center",
+              gap: "var(--space-s)",
+              flexWrap: "wrap",
+            }}
+          >
+            <TelegramAuthButton />
+            <GoogleAuthButton />
+          </Layout>
         </div>
       </Card>
     </Modal>
