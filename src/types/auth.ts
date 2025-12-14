@@ -5,6 +5,7 @@ export interface User {
   picture?: string;
   googleId?: string;
   telegramId?: string;
+  vkId?: number;
   createdAt: Date;
 }
 

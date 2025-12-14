@@ -6,11 +6,12 @@ import { Loader } from "@consta/uikit/Loader";
 import { IconSun } from "@consta/icons/IconSun";
 import { IconMoon } from "@consta/icons/IconMoon";
 import { IconExit } from "@consta/icons/IconExit";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@shared/hooks/useAuth";
 import { useCurrentUserQuery } from "@shared/hooks/useUser";
 import { useTheme } from "@shared/hooks/useTheme";
 import { isTelegramMiniApp } from "@shared/lib/isTelegramMiniApp";
+import { logout as apiLogout } from "@/entities/User";
 
 const PAGE_TITLES: Array<{ prefix: string; title: string }> = [
   { prefix: "/app/chat", title: "Чат" },
@@ -27,15 +28,31 @@ function getPageTitle(pathname: string): string {
 }
 
 export const Header = () => {
-  const { logout } = useAuth();
+  const { logout: clearAuth } = useAuth();
   const { data: user, isLoading } = useCurrentUserQuery();
   const { theme, setTheme } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
   const currentTitle = getPageTitle(location.pathname);
   const isMiniApp = isTelegramMiniApp();
 
   const toggleTheme = () => {
     setTheme(theme === "default" ? "dark" : "default");
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Вызываем API logout для очистки сессии на сервере
+      await apiLogout();
+    } catch (error) {
+      console.error("Ошибка при выходе:", error);
+      // Продолжаем выход даже если API запрос не удался
+    } finally {
+      // Очищаем токены из localStorage
+      clearAuth();
+      // Редиректим на страницу авторизации
+      navigate("/auth", { replace: true });
+    }
   };
 
   if (isLoading) {
@@ -90,7 +107,7 @@ export const Header = () => {
             label="Выйти"
             view="ghost"
             size="xs"
-            onClick={logout}
+            onClick={handleLogout}
           />
         )}
       </Layout>

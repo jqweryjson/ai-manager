@@ -6,6 +6,7 @@ import { ChatPage } from "@/pages/ChatPage";
 import { IntegrationsPage } from "@/pages/IntegrationsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { TelegramPage } from "@/pages/TelegramPage";
+import { VkPage } from "@/pages/VkPage";
 import "./styles/index.css";
 import "./styles/layout.css";
 
@@ -17,6 +18,7 @@ export const App = () => {
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/tg" element={<TelegramPage />} />
+            <Route path="/vk" element={<VkPage />} />
             {/* Родительский роут с авторизацией и MainLayout */}
             <Route path="/app" element={<ProtectedAppLayout />}>
               {/* Index route: редирект на /app/chat */}

@@ -102,6 +102,39 @@ Backend LLM Worker → RabbitMQ (vk.send_message) → VK Sender → VK.com
 - Один backend API поддерживает оба варианта
 - Frontend адаптируется под контекст (VKUI для Mini App, обычный UI для Standalone)
 
+**Важно: Авторизация через VK (основная, не только интеграция)**
+
+VK авторизация работает в двух режимах:
+
+1. **Основная авторизация** (как Google OAuth и Telegram Mini App):
+   - Пользователь авторизуется через VK → получает доступ к системе
+   - Создается/находится пользователь в таблице `users` с `vk_id`
+   - Аналогично `/api/tg/auth` для Telegram Mini App
+   - Эндпоинт: `POST /api/vk/auth` (Mini App) и `POST /api/vk/auth/oauth` (Standalone)
+
+2. **Интеграция для автоответов** (как Telegram User Bot):
+   - Пользователь уже авторизован в системе
+   - Подключает свой VK аккаунт для автоответов
+   - Сохраняется в таблице `vk_accounts` с `access_token`
+   - Эндпоинты: `/api/vk-user/*` (для управления интеграцией)
+
+**Объединение аккаунтов VK:**
+
+- Пользователь авторизуется на мобильном через VK Mini App → создается пользователь с `vk_id`
+- Пользователь авторизуется на десктопе через VK → ищется пользователь по `vk_id`
+- Если найден → используется тот же аккаунт (как с Telegram)
+- Результат: **один пользователь, один аккаунт** ✅
+
+**Логика объединения (аналогично Telegram):**
+
+```typescript
+// При авторизации через VK Mini App или OAuth
+1. Проверить, есть ли пользователь с таким vk_id (через findUserByVkId)
+2. Если найден → использовать существующего пользователя
+3. Если не найден → создать нового пользователя с vk_id
+4. Результат: один VK ID = один аккаунт в системе
+```
+
 - [ ] 1. UX/поток (страница `/app/integrations`)
   - [ ] Карточка "VK.com" со статусами:
     - [ ] Базовая карточка с поддержкой статусов (not_connected/pending_auth/connected)
@@ -127,144 +160,160 @@ Backend LLM Worker → RabbitMQ (vk.send_message) → VK Sender → VK.com
     - [ ] Настройка подписок через `SubscriptionConfigPanel` (workspace, role, enabled)
     - [ ] Сохранение подписок через `saveSubscriptions`
 
-- [ ] 2. Архитектура и безопасность
-  - [ ] Создать модуль `src/core/vk-auth.ts` (аналог `telegram-auth.ts`)
-    - [ ] Функция `validateVkParams(vkParams, appSecret)` → валидация подписи `vk-params` (HMAC)
-    - [ ] Функция `parseVkParams(vkParams)` → парсинг данных пользователя из `vk-params`
-    - [ ] Функция `getAccessTokenFromVkParams(vkParams)` → получение access_token из параметров
-  - [ ] Создать модуль `src/core/vk-api.ts`
-    - [ ] Функция `createVkApiClient(accessToken)` — создание клиента VK API
-    - [ ] Функция `getLongPollServer(accessToken)` → возвращает `{ server, key, ts }`
-    - [ ] Функция `longPoll(server, key, ts, wait)` → выполнение Long Poll запроса
-    - [ ] Функция `sendMessage(accessToken, peerId, text)` → отправка сообщения
-    - [ ] Функция `getConversations(accessToken, offset?, count?)` → получение диалогов
-    - [ ] Функция `getUserInfo(accessToken, userIds)` → получение информации о пользователях
-    - [ ] Обработка rate limits (3 req/sec)
-    - [ ] Обработка ошибок VK API (error_code, error_msg)
-  - [ ] Создать модуль `src/core/vk-oauth.ts`
-    - [ ] Функция `getOAuthUrl(appId, redirectUri, scope)` → генерация URL для OAuth
-    - [ ] Функция `exchangeCodeForToken(appId, appSecret, code, redirectUri)` → обмен code на access_token
-    - [ ] Функция `refreshAccessToken(appId, appSecret, refreshToken)` → обновление токена (если поддерживается)
-    - [ ] Функция `validateToken(accessToken)` → проверка валидности токена
-  - [ ] Хранение `access_token`, `refresh_token` — только зашифрованно (AES‑GCM)
-  - [ ] Изоляция по `user_id`, ACL, логи
+- [x] 2. Архитектура и безопасность
+  - [x] Создать модуль `src/core/vk-auth.ts` (аналог `telegram-auth.ts`)
+    - [x] Функция `validateVkParams(vkParams, appSecret)` → валидация подписи `vk-params` (HMAC)
+    - [x] Функция `parseVkParams(vkParams)` → парсинг данных пользователя из `vk-params`
+    - [x] Функция `getAccessTokenFromVkParams(vkParams)` → получение access_token из параметров
+  - [x] Создать модуль `src/core/vk-api.ts`
+    - [x] Функция `createVkApiClient(accessToken)` — создание клиента VK API
+    - [x] Функция `getLongPollServer(accessToken)` → возвращает `{ server, key, ts }`
+    - [x] Функция `longPoll(server, key, ts, wait)` → выполнение Long Poll запроса
+    - [x] Функция `sendMessage(accessToken, peerId, text)` → отправка сообщения
+    - [x] Функция `getConversations(accessToken, offset?, count?)` → получение диалогов
+    - [x] Функция `getUserInfo(accessToken, userIds)` → получение информации о пользователях
+    - [x] Обработка rate limits (3 req/sec)
+    - [x] Обработка ошибок VK API (error_code, error_msg)
+  - [x] Создать модуль `src/core/vk-oauth.ts`
+    - [x] Функция `getOAuthUrl(appId, redirectUri, scope)` → генерация URL для OAuth
+    - [x] Функция `exchangeCodeForToken(appId, appSecret, code, redirectUri)` → обмен code на access_token
+    - [x] Функция `refreshAccessToken(appId, appSecret, refreshToken)` → обновление токена (если поддерживается)
+    - [x] Функция `validateToken(accessToken)` → проверка валидности токена
+  - [x] Хранение `access_token`, `refresh_token` — только зашифрованно (AES‑GCM)
+  - [x] Изоляция по `user_id`, ACL, логи
   - [ ] Фоновые задачи для автоответов — реализовано через `vk-listener` (RabbitMQ + LLM worker + sender)
 
-- [ ] 3. БД и шифрование
-  - [ ] Миграция: таблица `vk_accounts`
-    - [ ] Поля: id, user_id, access_token (encrypted), refresh_token (encrypted), user_id_vk, status, expires_at, created_at, updated_at
-    - [ ] Статусы: "pending_auth", "connected", "expired" (CHECK constraint)
-    - [ ] Индексы: user_id (`idx_vk_accounts_user_id`), status (`idx_vk_accounts_status`)
-    - [ ] Foreign key на users(id) ON DELETE CASCADE
-  - [ ] Миграция: таблица `vk_subscriptions`
-    - [ ] Поля: id, vk_account_id, peer_id, peer_type, title, enabled, last_activity_at, created_at, updated_at
-    - [ ] Дополнительные поля:
-      - [ ] `workspace_id` (VARCHAR(50), FK на workspaces, ON DELETE CASCADE)
-      - [ ] `role_id` (VARCHAR(50), FK на roles, ON DELETE CASCADE)
-      - [ ] `mention_only` (BOOLEAN, DEFAULT TRUE) — отвечать только на упоминания в группах
-      - [ ] `next_allowed_at` (TIMESTAMP WITH TIME ZONE) — для управления rate limiting
-    - [ ] Индексы: vk_account_id (`idx_vk_subscriptions_account_id`), peer_id (`idx_vk_subscriptions_peer_id`), workspace_id, role_id, next_allowed_at (partial index)
-    - [ ] Foreign key на vk_accounts(id) ON DELETE CASCADE
-    - [ ] UNIQUE constraint на (vk_account_id, peer_id)
-  - [ ] Утилиты шифрования: `src/core/encryption.ts` (переиспользовать из Telegram)
-    - [ ] Функция `encrypt(data: string, key: string): string` (AES-256-GCM с PBKDF2)
-    - [ ] Функция `decrypt(encrypted: string, key: string): string`
-    - [ ] Использование `BACKEND_SECRET` из env
-  - [ ] Создать `src/core/vk-account-postgres.ts`
-    - [ ] Типы `VkAccount`, `VkSubscription`
-    - [ ] Функция `createVkAccount(userId, accessToken, refreshToken?, userIdVk?)` — создание аккаунта
-    - [ ] Функция `getVkAccount(accountId, userId)` — получение аккаунта с проверкой ownership
-    - [ ] Функция `getVkAccountsByUserId(userId)` — получение всех аккаунтов пользователя
-    - [ ] Функция `updateVkAccountToken(accountId, accessToken, refreshToken?, expiresAt?)` — обновление токена
-    - [ ] Функция `updateVkAccountStatus(accountId, status)` — обновление статуса
-    - [ ] Функция `deleteVkAccount(accountId, userId)` — удаление аккаунта
-    - [ ] Функция `decryptVkAccount(account)` — расшифровка access_token и refresh_token
-    - [ ] Функция `listVkSubscriptions(accountId, userId)` — список подписок
-    - [ ] Функция `upsertVkSubscriptions(accountId, userId, subscriptions)` — сохранение подписок
-    - [ ] Функция `canSendMessage(accountId, peerId)` — проверка, можно ли отправить (rate limiting)
-    - [ ] Функция `updateNextAllowedAt(accountId, peerId, seconds)` — обновление времени блокировки
+- [x] 3. БД и шифрование
+  - [x] Миграция: добавить `vk_id` в таблицу `users` (для основной авторизации)
+    - [x] Поле: `vk_id INTEGER UNIQUE` (VK ID пользователя)
+    - [x] Индекс: `idx_users_vk_id` для быстрого поиска
+    - [x] Аналогично `telegram_id` в таблице `users`
+  - [x] Миграция: таблица `vk_accounts` (для интеграции автоответов)
+    - [x] Поля: id, user_id, access_token (encrypted), refresh_token (encrypted), user_id_vk, status, expires_at, created_at, updated_at
+    - [x] Статусы: "pending_auth", "connected", "expired" (CHECK constraint)
+    - [x] Индексы: user_id (`idx_vk_accounts_user_id`), status (`idx_vk_accounts_status`)
+    - [x] Foreign key на users(id) ON DELETE CASCADE
+  - [x] Миграция: таблица `vk_subscriptions`
+    - [x] Поля: id, vk_account_id, peer_id, peer_type, title, enabled, last_activity_at, created_at, updated_at
+    - [x] Дополнительные поля:
+      - [x] `workspace_id` (VARCHAR(50), FK на workspaces, ON DELETE CASCADE)
+      - [x] `role_id` (VARCHAR(50), FK на roles, ON DELETE CASCADE)
+      - [x] `mention_only` (BOOLEAN, DEFAULT TRUE) — отвечать только на упоминания в группах
+      - [x] `next_allowed_at` (TIMESTAMP WITH TIME ZONE) — для управления rate limiting
+    - [x] Индексы: vk_account_id (`idx_vk_subscriptions_account_id`), peer_id (`idx_vk_subscriptions_peer_id`), workspace_id, role_id, next_allowed_at (partial index)
+    - [x] Foreign key на vk_accounts(id) ON DELETE CASCADE
+    - [x] UNIQUE constraint на (vk_account_id, peer_id)
+  - [x] Утилиты шифрования: `src/core/encryption.ts` (переиспользовать из Telegram)
+    - [x] Функция `encrypt(data: string, key: string): string` (AES-256-GCM с PBKDF2)
+    - [x] Функция `decrypt(encrypted: string, key: string): string`
+    - [x] Использование `BACKEND_SECRET` из env
+  - [x] Обновить `src/core/user-postgres.ts`:
+    - [x] Функция `findUserByVkId(vkId: number)` — поиск пользователя по VK ID (аналог `findUserByTelegramId`)
+    - [x] Обновить `createUser` для поддержки `vkId`
+    - [x] Обновить типы `User` для включения `vkId?: number`
+  - [x] Создать `src/core/vk-account-postgres.ts`
+    - [x] Типы `VkAccount`, `VkSubscription`
+    - [x] Функция `createVkAccount(userId, accessToken, refreshToken?, userIdVk?)` — создание аккаунта для интеграции
+    - [x] Функция `getVkAccount(accountId, userId)` — получение аккаунта с проверкой ownership
+    - [x] Функция `getVkAccountsByUserId(userId)` — получение всех аккаунтов пользователя
+    - [x] Функция `updateVkAccountToken(accountId, accessToken, refreshToken?, expiresAt?)` — обновление токена
+    - [x] Функция `updateVkAccountStatus(accountId, status)` — обновление статуса
+    - [x] Функция `deleteVkAccount(accountId, userId)` — удаление аккаунта
+    - [x] Функция `decryptVkAccount(account)` — расшифровка access_token и refresh_token
+    - [x] Функция `listVkSubscriptions(accountId, userId)` — список подписок
+    - [x] Функция `upsertVkSubscriptions(accountId, userId, subscriptions)` — сохранение подписок
+    - [x] Функция `canSendMessage(accountId, peerId)` — проверка, можно ли отправить (rate limiting)
+    - [x] Функция `updateNextAllowedAt(accountId, peerId, seconds)` — обновление времени блокировки
 
-- [ ] 4. Backend API (контракты)
-  - [ ] Создать `src/api/vk-user/index.ts` с роутами
-  - [ ] POST `/api/vk/auth` (Mini App авторизация, аналог `/api/tg/auth`)
-    - [ ] Принимает `vk-params` из Mini App
-    - [ ] Валидация HMAC подписи `vk-params` с VK_APP_SECRET
-    - [ ] Парсинг данных пользователя из `vk-params`
-    - [ ] Получение `access_token` из `vk-params` или через VK API
-    - [ ] По `user.id` из `vk-params` находим/создаём пользователя
-    - [ ] Сохранение аккаунта в БД (статус: "connected")
-    - [ ] Возврат нашего JWT (access/refresh) для дальнейшей работы
-  - [ ] POST `/api/vk-user/start` (Standalone/Сайт OAuth)
-    - [ ] Валидация входных данных (через Zod схему)
-    - [ ] Проверка авторизации (authMiddleware)
-    - [ ] Генерация OAuth URL через `getOAuthUrl`
-    - [ ] Возврат `{ oauth_url }`
-  - [ ] GET `/api/vk-user/callback` (Standalone/Сайт OAuth callback)
-    - [ ] Параметр `code` из query string
-    - [ ] Проверка авторизации (опционально, можно через state параметр)
-    - [ ] Обмен code на access_token через `exchangeCodeForToken`
-    - [ ] Получение информации о пользователе (user_id_vk)
-    - [ ] Сохранение аккаунта в БД (статус: "connected")
-    - [ ] Возврат `{ success: true, account_id }` или redirect на фронтенд
-  - [ ] GET `/api/vk-user/status`
-    - [ ] Проверка авторизации
-    - [ ] Получение всех аккаунтов пользователя из БД
-    - [ ] Возврат `{ accounts: [{ id, user_id_vk, status, expires_at, created_at }] }`
-  - [ ] POST `/api/vk-user/disconnect`
-    - [ ] Валидация: `{ account_id }`
-    - [ ] Проверка авторизации и ownership
-    - [ ] Удаление аккаунта и подписок из БД (CASCADE)
-    - [ ] Возврат `{ success: true }`
-  - [ ] GET `/api/vk-user/conversations`
-    - [ ] Проверка авторизации
-    - [ ] Параметр `account_id` (опционально, если несколько аккаунтов)
-    - [ ] Параметры `offset`, `count` для пагинации
-    - [ ] Получение зашифрованного access_token из БД, расшифровка
-    - [ ] Вызов `getConversations(accessToken, offset, count)`
-    - [ ] Форматирование: `{ peer_id, peer_type, title, unread_count }[]`
-    - [ ] Возврат списка диалогов с `has_more` и `next_offset`
-  - [ ] GET `/api/vk-user/subscriptions`
-    - [ ] Проверка авторизации
-    - [ ] Параметр `account_id`
-    - [ ] Получение подписок из БД
-    - [ ] Возврат `{ subscriptions: [...] }` (актуальный список подписок)
-  - [ ] POST `/api/vk-user/subscriptions`
-    - [ ] Валидация: `{ account_id, items: [{ peer_id, peer_type, title, enabled, workspace_id, role_id, mention_only }] }` (через Zod схему)
-    - [ ] Проверка авторизации и ownership аккаунта
-    - [ ] Сохранение/обновление подписок в БД (через `upsertVkSubscriptions`)
-    - [ ] Возврат `{ success: true, subscriptions: [...] }` (актуальный список подписок)
-  - [ ] POST `/api/vk-user/send`
-    - [ ] Валидация: `{ account_id, peer_id, peer_type, text }` (через Zod схему)
-    - [ ] Проверка авторизации и ownership (через `sendVkMessage`)
-    - [ ] Вызов `sendVkMessage` из `vk-send.ts`
-    - [ ] Обработка rate limit → возврат `{ error: "rate_limit", wait_seconds }` (статус 429)
-    - [ ] Возврат `{ success: true }` или `{ error: "rate_limit", wait_seconds }`
+- [x] 4. Backend API (контракты)
+  - [x] **Основная авторизация через VK** (аналог `/api/tg/auth`):
+    - [x] POST `/api/vk/auth` (Mini App авторизация)
+      - [x] Принимает `vk-params` из Mini App
+      - [x] Валидация HMAC подписи `vk-params` с VK_APP_SECRET
+      - [x] Парсинг данных пользователя из `vk-params` (user.id, имя, фото)
+      - [x] Поиск пользователя по `vk_id` через `findUserByVkId(vkId)`
+      - [x] Если не найден → создание нового пользователя с `vk_id` (аналогично Telegram)
+      - [x] Возврат нашего JWT (access/refresh) для дальнейшей работы
+      - [x] **Объединение аккаунтов:** один `vk_id` = один аккаунт (как с Telegram)
+    - [x] POST `/api/vk/auth/oauth` (Standalone/Сайт OAuth авторизация)
+      - [x] Принимает `code` из OAuth callback
+      - [x] Обмен `code` на `access_token` через `exchangeCodeForToken`
+      - [x] Получение информации о пользователе через VK API (`users.get`)
+      - [x] Поиск пользователя по `vk_id`
+      - [x] Если не найден → создание нового пользователя
+      - [x] Возврат JWT токенов
+  - [x] Создать `src/api/vk-user/index.ts` с роутами (для интеграции автоответов)
+  - [x] POST `/api/vk-user/start` (Standalone/Сайт OAuth)
+    - [x] Валидация входных данных (через Zod схему)
+    - [x] Проверка авторизации (authMiddleware)
+    - [x] Генерация OAuth URL через `getOAuthUrl`
+    - [x] Возврат `{ oauth_url }`
+  - [x] GET `/api/vk-user/callback` (Standalone/Сайт OAuth callback)
+    - [x] Параметр `code` из query string
+    - [x] Проверка авторизации (опционально, можно через state параметр)
+    - [x] Обмен code на access_token через `exchangeCodeForToken`
+    - [x] Получение информации о пользователе (user_id_vk)
+    - [x] Сохранение аккаунта в БД (статус: "connected")
+    - [x] Возврат `{ success: true, account_id }` или redirect на фронтенд
+  - [x] GET `/api/vk-user/status`
+    - [x] Проверка авторизации
+    - [x] Получение всех аккаунтов пользователя из БД
+    - [x] Возврат `{ accounts: [{ id, user_id_vk, status, expires_at, created_at }] }`
+  - [x] POST `/api/vk-user/disconnect`
+    - [x] Валидация: `{ account_id }`
+    - [x] Проверка авторизации и ownership
+    - [x] Удаление аккаунта и подписок из БД (CASCADE)
+    - [x] Возврат `{ success: true }`
+  - [x] GET `/api/vk-user/conversations`
+    - [x] Проверка авторизации
+    - [x] Параметр `account_id` (опционально, если несколько аккаунтов)
+    - [x] Параметры `offset`, `count` для пагинации
+    - [x] Получение зашифрованного access_token из БД, расшифровка
+    - [x] Вызов `getConversations(accessToken, offset, count)`
+    - [x] Форматирование: `{ peer_id, peer_type, title, unread_count }[]`
+    - [x] Возврат списка диалогов с `has_more` и `next_offset`
+  - [x] GET `/api/vk-user/subscriptions`
+    - [x] Проверка авторизации
+    - [x] Параметр `account_id`
+    - [x] Получение подписок из БД
+    - [x] Возврат `{ subscriptions: [...] }` (актуальный список подписок)
+  - [x] POST `/api/vk-user/subscriptions`
+    - [x] Валидация: `{ account_id, items: [{ peer_id, peer_type, title, enabled, workspace_id, role_id, mention_only }] }` (через Zod схему)
+    - [x] Проверка авторизации и ownership аккаунта
+    - [x] Сохранение/обновление подписок в БД (через `upsertVkSubscriptions`)
+    - [x] Возврат `{ success: true, subscriptions: [...] }` (актуальный список подписок)
+  - [x] POST `/api/vk-user/send`
+    - [x] Валидация: `{ account_id, peer_id, peer_type, text }` (через Zod схему)
+    - [x] Проверка авторизации и ownership (через `sendVkMessage`)
+    - [x] Вызов `sendVkMessage` из `vk-send.ts`
+    - [x] Обработка rate limit → возврат `{ error: "rate_limit", wait_seconds }` (статус 429)
+    - [x] Возврат `{ success: true }` или `{ error: "rate_limit", wait_seconds }`
 
-- [ ] 5. Core модули (отправка сообщений)
-  - [ ] Создать `src/core/vk-send.ts`
-    - [ ] Функция `sendVkMessage(accountId, userId, peerId, peerType, text)` — отправка сообщения
-      - [ ] Получение аккаунта из БД
-      - [ ] Расшифровка access_token
-      - [ ] Вызов `vkApi.messages.send`
-      - [ ] Обработка ошибок (rate limit, invalid token)
-      - [ ] Возврат результата с `rateLimitSeconds` (если есть)
-    - [ ] Обработка ошибок:
-      - [ ] Rate limit (error_code 6) → парсинг времени ожидания
-      - [ ] Invalid token (error_code 5) → обновление статуса на 'expired'
-      - [ ] User blocked (error_code 18) → логирование, возврат ошибки
+- [x] 5. Core модули (отправка сообщений)
+  - [x] Создать `src/core/vk-send.ts`
+    - [x] Функция `sendVkMessage(accountId, userId, peerId, peerType, text)` — отправка сообщения
+      - [x] Получение аккаунта из БД
+      - [x] Расшифровка access_token
+      - [x] Вызов `vkApi.messages.send`
+      - [x] Обработка ошибок (rate limit, invalid token)
+      - [x] Возврат результата с `rateLimitSeconds` (если есть)
+    - [x] Обработка ошибок:
+      - [x] Rate limit (error_code 6) → парсинг времени ожидания
+      - [x] Invalid token (error_code 5) → обновление статуса на 'expired'
+      - [x] User blocked (error_code 18) → логирование, возврат ошибки
 
-- [ ] 6. RabbitMQ интеграция
-  - [ ] Обновить `src/core/queue-config.ts`:
-    - [ ] Добавить `"vk"` в `IntegrationType`
-    - [ ] Добавить `VK_QUEUE_CONFIG`:
-      - [ ] Exchange: `vk_events` (direct)
-      - [ ] Queues: `vk.events` (события от listener), `vk.send_message` (задачи на отправку)
-    - [ ] Обновить `getQueueConfig` для поддержки `"vk"`
-    - [ ] Обновить `getAllQueueConfigs` для включения VK конфигурации
-  - [ ] Обновить `src/core/queue-publisher.ts`:
-    - [ ] Функция `publishVkEvent` — публикация событий от listener
-    - [ ] Функция `publishVkSendMessage` — публикация задач на отправку
-    - [ ] Формат сообщений: `{ type, integration: "vk", account_id, user_id, peer_id, peer_type, workspace_id, role_id, message: { id, text, senderId, date } }`
+- [x] 6. RabbitMQ интеграция
+  - [x] Обновить `src/core/queue-config.ts`:
+    - [x] Добавить `"vk"` в `IntegrationType`
+    - [x] Добавить `VK_QUEUE_CONFIG`:
+      - [x] Exchange: `vk_events` (direct)
+      - [x] Queues: `vk.events` (события от listener), `vk.send_message` (задачи на отправку)
+    - [x] Обновить `getQueueConfig` для поддержки `"vk"`
+    - [x] Обновить `getAllQueueConfigs` для включения VK конфигурации
+  - [x] Обновить `src/core/queue-publisher.ts`:
+    - [x] Функция `publishVkEvent` — публикация событий от listener
+    - [x] Функция `publishVkSendMessage` — публикация задач на отправку
+    - [x] Формат сообщений: `{ type, integration: "vk", account_id, user_id, peer_id, peer_type, workspace_id, role_id, message: { id, text, senderId, date } }`
 
 - [ ] 7. VK Listener (прослушивание сообщений)
   - [ ] **Шаг 1: Создание VK Listener Worker**
@@ -331,64 +380,75 @@ Backend LLM Worker → RabbitMQ (vk.send_message) → VK Sender → VK.com
     - [ ] Логирование успешных генераций и ошибок
   - [ ] Добавить npm-скрипты `dev:vk-llm-worker`, `start:vk-llm-worker` (docker-интеграция позже)
 
-- [ ] 10. Обработка событий от Listener
-  - [ ] Создать `src/api/vk-user/handlers/events.ts`:
-    - [ ] `handleVkEvent` — обработка событий от listener
-    - [ ] Валидация входных данных: `{ account_id, user_id, peer_id, peer_type, workspace_id, role_id, message: { id, text, senderId, date } }`
-    - [ ] Проверка наличия текста сообщения
-    - [ ] Проверка workspace и role
-    - [ ] Проверка `next_allowed_at` (чтобы не тратить LLM токены)
-    - [ ] Генерация ответа через `generateChatResponse`
-    - [ ] Публикация в RabbitMQ `vk.send_message` вместо прямого вызова
-  - [ ] Добавить маршрут `POST /internal/vk-user/events` (без аутентификации, только для Listener)
+- [x] 10. Обработка событий от Listener
+  - [x] Создать `src/api/vk-user/handlers/events.ts`:
+    - [x] `handleVkEvent` — обработка событий от listener
+    - [x] Валидация входных данных: `{ account_id, user_id, peer_id, peer_type, workspace_id, role_id, message: { id, text, senderId, date } }`
+    - [x] Проверка наличия текста сообщения
+    - [x] Проверка workspace и role
+    - [x] Проверка `next_allowed_at` (чтобы не тратить LLM токены)
+    - [x] Генерация ответа через `generateChatResponse`
+    - [x] Публикация в RabbitMQ `vk.send_message` вместо прямого вызова
+  - [x] Добавить маршрут `POST /internal/vk-user/events` (без аутентификации, только для Listener)
   - [ ] Обновить `vk-listener` для отправки событий на backend (опционально, можно сразу в RabbitMQ)
 
-- [ ] 11. HTTP API для VK Service (control API через Fastify)
-  - [ ] **Шаг 1: HTTP‑сервер внутри `vk-listener`**
+- [x] 11. HTTP API для VK Service (control API через Fastify)
+  - [x] **Шаг 1: HTTP‑сервер внутри `vk-listener`** (частично — listenerControl создан, но сам listener нет)
     - [ ] Создать `src/workers/vk/httpServer.ts`:
       - [ ] Инициализация Fastify (легковесный сервер) внутри процесса listener'а
       - [ ] Экспорт функции `startHttpServer(listenerManager: VkListenerManager)`
     - [ ] В `src/workers/vk-listener.ts`:
       - [ ] Импортировать `startHttpServer`
       - [ ] После `manager.initialize()` вызвать `startHttpServer(manager)` (порт по умолчанию `4003`, настраивается через `VK_SERVICE_PORT`)
-  - [ ] **Шаг 2: Control‑роуты в VK Service**
-    - [ ] `POST /internal/listener/reload-account`:
-      - [ ] Body: `{ account_id: string, user_id: string }`
-      - [ ] Валидация входных данных
-      - [ ] Вызов `manager.startListening(account_id, user_id)`
-      - [ ] Логирование результата
+  - [x] **Шаг 2: Control‑роуты в VK Service**
+    - [x] `POST /internal/listener/reload-account`:
+      - [x] Body: `{ account_id: string, user_id: string }`
+      - [x] Валидация входных данных
+      - [x] Вызов `manager.startListening(account_id, user_id)`
+      - [x] Логирование результата
     - [ ] (опционально) `GET /internal/listener/status`:
       - [ ] Возвращает `manager.getStatus()` (список активных аккаунтов, uptime)
-  - [ ] **Шаг 3: Backend API — прокси к VK Service**
-    - [ ] В основном backend'е добавить внутренний хендлер:
-      - [ ] `POST /api/internal/vk-user/listener/reload-account`
-      - [ ] Body: `{ account_id, user_id }`
-      - [ ] HTTP‑запрос в `vk-listener` сервис: `http://vk-listener:4003/internal/listener/reload-account` (через `VK_SERVICE_URL`)
-      - [ ] Проксирование ответа/логирование ошибок
-  - [ ] **Шаг 4: Вызов control‑API из OAuth‑авторизации**
-    - [ ] В хендлере `/api/vk-user/callback`:
-      - [ ] После смены статуса аккаунта на `connected` вызывать:
-        - [ ] `POST /api/internal/vk-user/listener/reload-account` с `{ account_id, user_id }`
-      - [ ] Логировать: `📡 Отправлен запрос reload-account для VK Service`
+  - [x] **Шаг 3: Backend API — прокси к VK Service**
+    - [x] В основном backend'е добавить внутренний хендлер:
+      - [x] `POST /api/internal/vk-user/listener/reload-account`
+      - [x] Body: `{ account_id, user_id }`
+      - [x] HTTP‑запрос в `vk-listener` сервис: `http://vk-listener:4003/internal/listener/reload-account` (через `VK_SERVICE_URL`)
+      - [x] Проксирование ответа/логирование ошибок
+  - [x] **Шаг 4: Вызов control‑API из OAuth‑авторизации**
+    - [x] В хендлере `/api/vk-user/callback`:
+      - [x] После смены статуса аккаунта на `connected` вызывать:
+        - [x] `POST /api/internal/vk-user/listener/reload-account` с `{ account_id, user_id }`
+      - [x] Логировать: `📡 Отправлен запрос reload-account для VK Service`
   - [ ] **Шаг 5: Docker / окружение**
     - [ ] Убедиться, что сервис `vk-listener` доступен по имени `vk-listener` внутри docker‑сети
     - [ ] Не открывать HTTP‑порт наружу (API только внутри сети Docker)
 
 - [ ] 12. Фронтенд
-  - [ ] **Mini App режим** (приоритет):
+  - [ ] **Основная авторизация через VK** (аналог Telegram Mini App):
     - [ ] Создать `frontend/src/shared/lib/isVkMiniApp.ts` (аналог `isTelegramMiniApp.ts`)
       - [ ] Проверка наличия `window.VK` и `vk-params`
+    - [ ] Создать `frontend/src/shared/api/vk.ts` (аналог `telegram.ts`)
+      - [ ] Функция `vkAuth(vkParams: string)` → POST `/api/vk/auth`
+      - [ ] Типы: `VkAuthResponse` с `accessToken`, `refreshToken`, `user`
     - [ ] Создать `frontend/src/pages/VkPage/index.tsx` (аналог `TelegramPage`)
       - [ ] Роут `/vk` с инициализацией VK Mini App SDK
       - [ ] Чтение `vk-params` и POST на `/api/vk/auth`
       - [ ] Сохранение JWT и переход в компактный чат
+      - [ ] VK SDK инициализация: `window.VK.init({ apiId })`, `window.VK.getParams()`
     - [ ] Обновить `ProtectedAppLayout`:
       - [ ] Авто‑логин через VK Mini App (аналог Telegram Mini App)
       - [ ] Проверка `isVkMiniApp()` и автоматическая авторизация
+      - [ ] Логика: VK Mini App → автоматический вход, Standalone → OAuth redirect
+    - [ ] Создать `frontend/src/features/Auth/VkAuth/index.tsx` (аналог `TelegramAuth`)
+      - [ ] Компонент для авторизации через VK (кнопка "Войти через VK")
+      - [ ] Поддержка и Mini App, и OAuth redirect
+  - [ ] **Интеграция для автоответов** (Mini App режим, приоритет):
+    - [ ] Автоматическая авторизация через `vk-params` в Mini App контексте
+    - [ ] Сохранение аккаунта в БД без дополнительных шагов
   - [ ] **Standalone/Сайт режим** (fallback):
     - [ ] Карточка VK: состояния, действия
       - [ ] Создана структура feature `VkIntegration` (FSD)
-      - [ ] Компонент `VkIntegrationCard` с поддержкой статусов (not_connected/pending_auth/connected)
+      - [ ] Компонент `VkIntegrationCard` с поддержкой статусов (not_connected/pending_auth/connected/expired)
       - [ ] Переиспользуемый компонент `ExpandableCard` (переиспользовать из Telegram)
       - [ ] Переиспользуемый компонент `IntegrationCardHeader` (переиспользовать из Telegram)
       - [ ] Страница `/app/integrations` с массивом интеграций (добавить VK в список)
@@ -402,21 +462,47 @@ Backend LLM Worker → RabbitMQ (vk.send_message) → VK Sender → VK.com
       - [ ] Фильтрация по типам (user/chat/group) через чекбоксы
       - [ ] Рефакторинг на подкомпоненты: `ConversationsSearchBar`, `ConversationsList`, `ConversationItem`
       - [ ] Хуки: `useDebouncedSearch`, `useConversationsFilter` (переиспользовать из Telegram)
-      - [ ] Константы вынесены в `constants.ts`
-  - [ ] API клиент: `frontend/src/shared/api/vk-user.ts`
-    - [ ] `startConnection()` → POST `/api/vk-user/start` (возвращает oauth_url)
-    - [ ] `handleCallback(code)` → GET `/api/vk-user/callback?code=...`
-    - [ ] `getStatus()` → GET `/api/vk-user/status`
-    - [ ] `disconnect(accountId)` → POST `/api/vk-user/disconnect`
-    - [ ] `getConversations(accountId, offset?, count?)` → GET `/api/vk-user/conversations` (с пагинацией)
-    - [ ] `getSubscriptions(accountId)` → GET `/api/vk-user/subscriptions`
-    - [ ] `saveSubscriptions(accountId, items)` → POST `/api/vk-user/subscriptions`
-  - [ ] UI для подключенного состояния
-    - [ ] Список диалогов с настройками подписок (`VkConversationsList`) — реализован
-    - [ ] Список подписок (чаты) с настройками enabled/disabled через `SubscriptionConfigPanel` (переиспользовать из Telegram)
-    - [ ] Кнопка "Отключить" → вызов `disconnect` (в `ConnectionFooter`)
-    - [ ] Список подключенных аккаунтов (если несколько) — опционально
-    - [ ] Отображение статуса аккаунта (connected/expired) — опционально
+      - [ ] Константы вынесены в `constants.ts` (DIALOGS_PAGE_SIZE, SEARCH_DEBOUNCE_MS)
+      - [ ] Пагинация через `loadMore()` при скролле
+      - [ ] Сортировка: сначала активные подписки (`enabled=true`), потом неактивные, потом без подписки
+    - [ ] API клиент: `frontend/src/shared/api/vk-user.ts`
+      - [ ] `startConnection()` → POST `/api/vk-user/start` (возвращает oauth_url)
+      - [ ] `handleCallback(code)` → GET `/api/vk-user/callback?code=...`
+      - [ ] `getStatus()` → GET `/api/vk-user/status` (возвращает `{ accounts: VkAccount[] }`)
+      - [ ] `disconnect(accountId)` → POST `/api/vk-user/disconnect`
+      - [ ] `getConversations(accountId, offset?, count?)` → GET `/api/vk-user/conversations` (с пагинацией)
+      - [ ] `getSubscriptions(accountId)` → GET `/api/vk-user/subscriptions`
+      - [ ] `saveSubscriptions(accountId, items)` → POST `/api/vk-user/subscriptions`
+      - [ ] Типы: `VkAccount`, `ConversationItem`, `SubscriptionItem` (без `access_hash`, типы `user/chat/group`)
+    - [ ] Feature структура (FSD):
+      - [ ] `frontend/src/features/VkIntegration/index.ts` (public API)
+      - [ ] `frontend/src/features/VkIntegration/types.ts` (VkIntegrationCardProps, VkAccountStatus)
+      - [ ] `frontend/src/features/VkIntegration/utils/statusUtils.ts` (getStatusLabel, isPreparing, isConnected, isExpired)
+      - [ ] Hooks:
+        - [ ] `useVkUserStatus.ts` (статус аккаунта, accountId, userVkId, isLoading, error, refetch)
+        - [ ] `useVkConnection.ts` (handleStartConnection, handleDisconnect, loading, error)
+        - [ ] `useVkConversations.ts` (загрузка диалогов с пагинацией, loadMore)
+        - [ ] `useVkSubscriptions.ts` (getSubscriptions, saveSubscriptions)
+        - [ ] `useDebouncedSearch.ts` (переиспользовать из Telegram)
+        - [ ] `useConversationsFilter.ts` (фильтрация по типам user/chat/group)
+      - [ ] UI компоненты:
+        - [ ] `VkIntegrationCard.tsx` (главная карточка, состояния preparing/pending_auth/connected/expired)
+        - [ ] `ConnectionInstructions.tsx` (инструкции по подключению, кнопка "Подключить")
+        - [ ] `VkConversationsList.tsx` (список диалогов с настройками подписок)
+        - [ ] `constants.ts` (DIALOGS_PAGE_SIZE, SEARCH_DEBOUNCE_MS)
+    - [ ] UI для подключенного состояния
+      - [ ] Список диалогов с настройками подписок (`VkConversationsList`) — реализован
+      - [ ] Список подписок (чаты) с настройками enabled/disabled через `SubscriptionConfigPanel` (переиспользовать из Telegram)
+      - [ ] Кнопка "Отключить" → вызов `disconnect` (в `ConnectionFooter`)
+      - [ ] Список подключенных аккаунтов (если несколько) — опционально
+      - [ ] Отображение статуса аккаунта (connected/expired) — опционально
+    - [ ] OAuth Callback обработка
+      - [ ] В `IntegrationsPage` проверка URL параметров (`success=vk_connected`, `error`)
+      - [ ] Показ уведомления при успешном подключении
+      - [ ] Обновление статуса через `queryClient.refetchQueries`
+      - [ ] Очистка URL через `window.history.replaceState`
+    - [ ] Роутинг
+      - [ ] Добавить роут `/vk` → `<VkPage />` в `frontend/src/app/index.tsx`
   - [ ] Никаких секретов на фронте; всё через API — реализовано (все данные через REST API, токены в localStorage)
 
 - [ ] 13. Тестирование
@@ -425,6 +511,14 @@ Backend LLM Worker → RabbitMQ (vk.send_message) → VK Sender → VK.com
   - [ ] Мобайл/десктоп: адаптивность мастера/списков
   - [ ] Long Poll переподключения при сетевых ошибках
   - [ ] Автоответы end-to-end (от получения сообщения до отправки ответа)
+  - [ ] VK Mini App авторизация работает
+  - [ ] OAuth flow работает (standalone)
+  - [ ] Диалоги загружаются и отображаются
+  - [ ] Подписки сохраняются
+  - [ ] Поиск и фильтрация работают
+  - [ ] Пагинация работает
+  - [ ] Ошибки обрабатываются корректно
+  - [ ] Адаптивность (мобильный/десктоп)
 
 - [ ] 14. Риски/ограничения
   - [ ] Rate limits: фиксированный лимит 3 req/sec — нужен строгий rate limiting
@@ -442,6 +536,32 @@ Backend LLM Worker → RabbitMQ (vk.send_message) → VK Sender → VK.com
   - [ ] Rate limiting работает; нет лишних отправок
   - [ ] Система масштабируется: можно запустить несколько worker'ов
   - [ ] Мониторинг: логи и метрики работают
+
+## Текущий статус
+
+**Выполнено:**
+
+- ✅ Архитектура и безопасность (core модули: vk-auth, vk-api, vk-oauth)
+- ✅ БД и шифрование (миграции, vk-account-postgres)
+- ✅ Backend API (основная авторизация и интеграция)
+- ✅ Core модули (vk-send.ts)
+- ✅ RabbitMQ интеграция (VK_QUEUE_CONFIG, publishVkEvent, publishVkSendMessage)
+- ✅ Обработка событий (handleVkEvent)
+- ✅ HTTP API для VK Service (listenerControl — прокси к будущему listener)
+
+**В процессе / Следующий шаг:**
+
+- 🔄 **12. Фронтенд** — приоритет для тестирования базового функционала
+- ⏳ 7. VK Listener (прослушивание сообщений) — требуется для автоответов
+- ⏳ 8. VK Sender (отправка сообщений) — требуется для автоответов
+- ⏳ 9. Backend API Worker для LLM генерации — требуется для автоответов
+
+**Рекомендуемый порядок реализации:**
+
+1. **12. Фронтенд** — чтобы пользователи могли подключать аккаунты и настраивать подписки
+2. **7. VK Listener** — для получения сообщений
+3. **8. VK Sender** — для отправки ответов
+4. **9. Backend API Worker для LLM** — для генерации ответов
 
 ## Технические детали
 
@@ -480,6 +600,15 @@ if (update[0] === 4 && !(update[2] & 2)) {
 - Показать пользователю уведомление о необходимости переподключения
 - Опционально: автоматическая переавторизация через refresh_token (если поддерживается)
 
+### Отличия от Telegram (Frontend)
+
+1. **Нет MTProto**: OAuth вместо кодов и 2FA
+2. **Упрощенный flow**: `startConnection()` → редирект на OAuth → callback → готово
+3. **Нет `access_hash`**: VK использует только `peer_id` (число)
+4. **Типы диалогов**: `user/chat/group` вместо `user/chat/channel`
+5. **Пагинация**: `offset/count` вместо `offset_date`
+6. **VK Mini App**: Использует `window.VK` вместо `window.Telegram`
+
 ## Переменные окружения
 
 ```env
@@ -500,20 +629,24 @@ BACKEND_SECRET=your-secret-key
 
 ## Следующие шаги
 
-1. **Создать VK приложение:**
-   - Зайти на https://vk.com/apps?act=manage
-   - Создать новое приложение (тип: "Веб-сайт")
-   - Получить App ID и App Secret
-   - Настроить Redirect URI
-
-2. **Начать с шага 0:**
-   - Установить переменные окружения
+1. **Проверить переменные окружения:**
+   - Убедиться, что VK_APP_ID, VK_APP_SECRET, VK_REDIRECT_URI установлены в `.env`
    - Проверить наличие BACKEND_SECRET
 
-3. **Постепенная реализация:**
-   - Следовать шагам по порядку
-   - Тестировать каждый этап
-   - Документировать изменения
+2. **Реализовать фронтенд (приоритет):**
+   - Начать с shared API клиентов (`vk.ts`, `vk-user.ts`)
+   - Создать feature `VkIntegration` (FSD структура)
+   - Реализовать UI компоненты (VkIntegrationCard, VkConversationsList)
+   - Добавить роутинг и обработку OAuth callback
+
+3. **После фронтенда — реализовать VK Listener:**
+   - Создать `src/workers/vk-listener.ts`
+   - Настроить Docker интеграцию
+   - Добавить npm скрипты
+
+4. **Реализовать VK Sender и LLM Worker:**
+   - VK Sender для отправки сообщений
+   - LLM Worker для генерации ответов
 
 ## Ссылки
 

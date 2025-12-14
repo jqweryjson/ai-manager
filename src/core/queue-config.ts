@@ -2,7 +2,7 @@
  * Конфигурация очередей для разных интеграций
  */
 
-export type IntegrationType = "telegram" | "whatsapp" | "slack" | "crm";
+export type IntegrationType = "telegram" | "vk" | "whatsapp" | "slack" | "crm";
 
 export interface QueueConfig {
   integration: IntegrationType;
@@ -26,12 +26,26 @@ export const TELEGRAM_QUEUE_CONFIG: QueueConfig = {
 };
 
 /**
+ * Конфигурация очередей для VK
+ */
+export const VK_QUEUE_CONFIG: QueueConfig = {
+  integration: "vk",
+  exchange: "vk_events",
+  queues: {
+    events: "vk.events",
+    sendMessage: "vk.send_message",
+  },
+};
+
+/**
  * Получить конфигурацию очередей для интеграции
  */
 export function getQueueConfig(integration: IntegrationType): QueueConfig {
   switch (integration) {
     case "telegram":
       return TELEGRAM_QUEUE_CONFIG;
+    case "vk":
+      return VK_QUEUE_CONFIG;
     // TODO: Добавить конфигурации для других интеграций
     // case "whatsapp":
     //   return WHATSAPP_QUEUE_CONFIG;
@@ -44,5 +58,5 @@ export function getQueueConfig(integration: IntegrationType): QueueConfig {
  * Получить все конфигурации очередей
  */
 export function getAllQueueConfigs(): QueueConfig[] {
-  return [TELEGRAM_QUEUE_CONFIG];
+  return [TELEGRAM_QUEUE_CONFIG, VK_QUEUE_CONFIG];
 }

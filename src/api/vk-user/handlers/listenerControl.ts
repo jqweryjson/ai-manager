@@ -5,6 +5,9 @@ interface ReloadAccountBody {
   user_id?: string;
 }
 
+/**
+ * POST /api/internal/vk-user/listener/reload-account - перезапуск listener для аккаунта
+ */
 export async function handleReloadAccount(
   fastify: FastifyInstance,
   request: FastifyRequest,
@@ -16,7 +19,7 @@ export async function handleReloadAccount(
 
     if (!account_id || !user_id) {
       fastify.log.warn(
-        `⚠️  Неверный payload для /api/internal/tg-user/listener/reload-account: ${JSON.stringify(body)}`
+        `⚠️  Неверный payload для /api/internal/vk-user/listener/reload-account: ${JSON.stringify(body)}`
       );
       return reply.status(400).send({
         error: "invalid_payload",
@@ -24,15 +27,15 @@ export async function handleReloadAccount(
       });
     }
 
-    const baseUrl = process.env.TELEGRAM_SERVICE_URL;
+    const baseUrl = process.env.VK_SERVICE_URL;
 
     if (!baseUrl) {
       fastify.log.error(
-        "❌ TELEGRAM_SERVICE_URL не установлена в переменных окружения"
+        "❌ VK_SERVICE_URL не установлена в переменных окружения"
       );
       return reply.status(500).send({
         error: "configuration_error",
-        message: "TELEGRAM_SERVICE_URL is not configured",
+        message: "VK_SERVICE_URL is not configured",
       });
     }
 
@@ -51,10 +54,10 @@ export async function handleReloadAccount(
 
     if (!response.ok) {
       fastify.log.error(
-        `❌ Ошибка при вызове Telegram Service reload-account: ${response.status}`
+        `❌ Ошибка при вызове VK Service reload-account: ${response.status}`
       );
       return reply.status(response.status).send({
-        error: "telegram_service_error",
+        error: "vk_service_error",
         status: response.status,
         data,
       });

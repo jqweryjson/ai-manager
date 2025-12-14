@@ -32,6 +32,6 @@ export function useAuth() {
       token,
       getToken,
     }),
-    [token]
+    [isAuthenticated, token]
   );
 }

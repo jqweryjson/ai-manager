@@ -2,12 +2,13 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import "dotenv/config";
-import { authRoutes } from "./api/auth.js";
+import { authRoutes } from "./api/auth/index.js";
 import { ingestRoutes } from "./api/ingest.js";
 import { chatRoutes } from "./api/chat.js";
 import { workspaceRoutes } from "./api/workspace.js";
 import { roleRoutes } from "./api/role.js";
 import { telegramUserRoutes } from "./api/telegram-user/index.js";
+import { vkUserRoutes } from "./api/vk-user/index.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { initializeCollection } from "./core/milvus.js";
 
@@ -51,6 +52,7 @@ await app.register(roleRoutes, { prefix: "/api" });
 await app.register(ingestRoutes, { prefix: "/api" });
 await app.register(chatRoutes, { prefix: "/api" });
 await app.register(telegramUserRoutes, { prefix: "/api" });
+await app.register(vkUserRoutes, { prefix: "/api" });
 
 // Initialize Milvus collection on startup
 try {

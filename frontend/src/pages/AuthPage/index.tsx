@@ -7,6 +7,7 @@ import { Card } from "@consta/uikit/Card";
 // import { LoginForm } from "@/features/Auth/LoginForm";
 import { GoogleAuthButton } from "@/features/Auth/GoogleAuth";
 import { TelegramAuthButton } from "@/features/Auth/TelegramAuth";
+import { VkAuthButton } from "@/features/Auth/VkAuth";
 import { useAuth } from "@shared/hooks/useAuth";
 // import type { LoginFormData } from "@shared/lib/validation";
 import { Layout } from "@consta/uikit/Layout";
@@ -74,6 +75,7 @@ export const AuthPage = () => {
             }}
           >
             <TelegramAuthButton />
+            <VkAuthButton />
             <GoogleAuthButton />
           </Layout>
         </div>
