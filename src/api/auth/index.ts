@@ -6,7 +6,13 @@ import {
   handleTelegramAuth,
   handleTelegramWebAuth,
 } from "./handlers/telegram.js";
-import { handleVkAuth, handleVkOAuth, handleVkOAuthCallback } from "./handlers/vk.js";
+import {
+  handleVkAuth,
+  handleVkIdInit,
+  handleVkIdCallback,
+  handleVkIdCode,
+  handleVkIdSilent,
+} from "./handlers/vk.js";
 
 export async function authRoutes(fastify: FastifyInstance) {
   // Google OAuth
@@ -44,10 +50,18 @@ export async function authRoutes(fastify: FastifyInstance) {
   fastify.post("/vk/auth", async (request, reply) =>
     handleVkAuth(fastify, request, reply)
   );
-  fastify.get("/vk/auth/oauth/callback", async (request, reply) =>
-    handleVkOAuthCallback(fastify, request, reply)
+  // VK ID авторизация (современный подход через SDK)
+  fastify.post("/vk/auth/code", async (request, reply) =>
+    handleVkIdCode(fastify, request, reply)
   );
-  fastify.post("/vk/auth/oauth", async (request, reply) =>
-    handleVkOAuth(fastify, request, reply)
+  // Старые endpoints (для обратной совместимости, если нужны)
+  fastify.get("/vk/auth/init", async (request, reply) =>
+    handleVkIdInit(fastify, request, reply)
+  );
+  fastify.get("/vk/auth/callback", async (request, reply) =>
+    handleVkIdCallback(fastify, request, reply)
+  );
+  fastify.post("/vk/auth/silent", async (request, reply) =>
+    handleVkIdSilent(fastify, request, reply)
   );
 }

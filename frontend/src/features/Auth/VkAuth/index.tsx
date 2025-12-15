@@ -1,60 +1,172 @@
-import { Button } from "@consta/uikit/Button";
+import { useEffect, useRef } from "react";
 import { isVkMiniApp } from "@shared/lib/isVkMiniApp";
+import { vkIdAuth } from "@shared/api/vk";
+import { useAuth } from "@shared/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
+
+// Типы для VK ID SDK
+declare global {
+  interface Window {
+    VKIDSDK?: {
+      Config: {
+        init: (config: {
+          app: number;
+          redirectUrl: string;
+          responseMode: string;
+          source: string;
+          scope?: string;
+        }) => void;
+        ConfigResponseMode: {
+          Callback: string;
+        };
+        ConfigSource: {
+          LOWCODE: string;
+        };
+      };
+      OAuthList: new () => {
+        render: (options: {
+          container: HTMLElement;
+          styles?: {
+            borderRadius?: number;
+            height?: number;
+          };
+          oauthList: string[];
+        }) => {
+          on: (
+            event: string,
+            handler: (payload: unknown) => void
+          ) => {
+            on: (event: string, handler: (payload: unknown) => void) => unknown;
+          };
+        };
+      };
+      WidgetEvents: {
+        ERROR: string;
+      };
+      OAuthListInternalEvents: {
+        LOGIN_SUCCESS: string;
+      };
+      Auth: {
+        exchangeCode: (
+          code: string,
+          deviceId: string
+        ) => Promise<{
+          access_token: string;
+          user_id: number;
+          expires_in?: number;
+        }>;
+      };
+    };
+  }
+}
 
 export const VkAuthButton = () => {
-  // VK Mini App использует автоматическую авторизацию через ProtectedAppLayout
-  // Не показываем кнопку внутри Mini App
-  if (isVkMiniApp()) {
-    return null;
-  }
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
-  const handleVkLogin = () => {
-    const appId = import.meta.env.VITE_VK_APP_ID;
-    const apiBaseUrl = import.meta.env.VITE_API_URL || "/api";
-    const redirectUri = `${window.location.origin}${apiBaseUrl}/vk/auth/oauth/callback`;
-
-    if (!appId) {
-      console.error("VITE_VK_APP_ID is not set");
-      alert("Ошибка конфигурации: VK App ID не установлен");
+  useEffect(() => {
+    // VK Mini App использует автоматическую авторизацию через ProtectedAppLayout
+    // Не показываем кнопку внутри Mini App
+    if (isVkMiniApp()) {
       return;
     }
 
-    // OAuth scope для авторизации
-    const scope = "email";
-    const responseType = "code";
+    // Загружаем VK ID SDK если еще не загружен
+    if (!window.VKIDSDK) {
+      const script = document.createElement("script");
+      script.src = "https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js";
+      script.async = true;
+      script.onload = () => {
+        // SDK загружен, инициализируем виджет
+        initializeVkId();
+      };
+      document.head.appendChild(script);
+      return;
+    }
 
-    // Формируем OAuth URL
-    const oauthUrl = `https://oauth.vk.com/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=${responseType}&display=page`;
+    // SDK уже загружен, инициализируем виджет
+    initializeVkId();
 
-    // Redirect на OAuth
-    window.location.href = oauthUrl;
-  };
+    function initializeVkId() {
+      if (!window.VKIDSDK || !containerRef.current) {
+        return;
+      }
+
+      const VKID = window.VKIDSDK;
+      const VK_APP_ID = import.meta.env.VITE_VK_APP_ID
+        ? Number(import.meta.env.VITE_VK_APP_ID)
+        : undefined;
+
+      if (!VK_APP_ID) {
+        console.error("VITE_VK_APP_ID is not set");
+        return;
+      }
+
+      // Инициализация VK ID SDK
+      VKID.Config.init({
+        app: VK_APP_ID,
+        redirectUrl: window.location.origin,
+        responseMode: VKID.Config.ConfigResponseMode.Callback,
+        source: VKID.Config.ConfigSource.LOWCODE,
+        scope: "email",
+      });
+
+      // Создаем виджет авторизации
+      const oAuth = new VKID.OAuthList();
+      const container = containerRef.current;
+
+      if (!container) {
+        return;
+      }
+
+      oAuth
+        .render({
+          container,
+          styles: {
+            borderRadius: 4,
+            height: 40,
+          },
+          oauthList: ["vkid"], // Только VK ID, можно добавить 'ok_ru', 'mail_ru'
+        })
+        .on(VKID.WidgetEvents.ERROR, (error: unknown) => {
+          console.error("VK ID error:", error);
+          alert("Ошибка авторизации через VK");
+        })
+        .on(VKID.OAuthListInternalEvents.LOGIN_SUCCESS, (payload: unknown) => {
+          const loginPayload = payload as {
+            code?: string;
+            device_id?: string;
+          };
+          const code = loginPayload.code;
+          const deviceId = loginPayload.device_id;
+
+          if (!code || !deviceId) {
+            console.error("Missing code or device_id");
+            return;
+          }
+
+          // Отправляем code на бэкенд для обмена на токены
+          vkIdAuth(code, deviceId)
+            .then(response => {
+              login(response.accessToken, response.refreshToken);
+              navigate("/app/chat", { replace: true });
+            })
+            .catch(error => {
+              console.error("VK ID auth error:", error);
+              alert("Ошибка авторизации через VK");
+            });
+        });
+    }
+  }, [login, navigate]);
 
   return (
-    <Button
-      label="&nbsp; Войти через VK"
-      view="ghost"
-      onClick={handleVkLogin}
-      style={{ alignSelf: "flex-start" }}
-      iconLeft={() => (
-        <svg
-          width="24"
-          height="24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <g clip-path="url(#new_logo_vk_with_text__b)">
-            <path
-              d="M11.5 24h1c5.44 0 8.15 0 9.83-1.68C24 20.64 24 17.92 24 12.5v-1.02c0-5.4 0-8.12-1.67-9.8C20.65 0 17.93 0 12.5 0h-1C6.06 0 3.35 0 1.67 1.68 0 3.36 0 6.08 0 11.5v1.02c0 5.4 0 8.12 1.68 9.8C3.36 24 6.08 24 11.5 24Z"
-              fill="#07F"
-            ></path>
-            <path
-              d="M12.77 17.29c-5.47 0-8.59-3.75-8.72-9.99h2.74c.09 4.58 2.11 6.52 3.71 6.92V7.3h2.58v3.95c1.58-.17 3.24-1.97 3.8-3.95h2.58a7.62 7.62 0 0 1-3.51 4.98 7.9 7.9 0 0 1 4.11 5.01h-2.84a4.94 4.94 0 0 0-4.14-3.57v3.57h-.31Z"
-              fill="#fff"
-            ></path>
-          </g>
-        </svg>
-      )}
+    <div
+      ref={containerRef}
+      style={{
+        display: "flex",
+        justifyContent: "flex-start",
+      }}
     />
   );
 };

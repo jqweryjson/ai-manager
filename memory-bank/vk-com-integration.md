@@ -52,30 +52,33 @@ Backend LLM Worker → RabbitMQ (vk.send_message) → VK Sender → VK.com
 | Access hash   | Да (для каналов)                | Нет (используется peer_id) |
 | 2FA           | Да (опционально)                | Нет                        |
 
-- [ ] 0. Секреты/окружение
-  - [ ] **VK_APP_ID и VK_APP_SECRET** — это **глобальные секреты нашего приложения** (не пользовательские!)
-    - [ ] Создаём **одно** приложение в VK на https://vk.com/apps?act=manage
-    - [ ] Тип приложения: **Мини-приложение** (для бесшовной авторизации) + **Сайт** (для OAuth fallback)
-    - [ ] Получаем **один** набор VK_APP_ID и VK_APP_SECRET для всего приложения
-    - [ ] Эти секреты используются для:
+- [x] 0. Секреты/окружение
+  - [x] **VK_APP_ID и VK_APP_SECRET** — это **глобальные секреты нашего приложения** (не пользовательские!)
+    - [x] Создаём **одно** приложение в VK на https://vk.com/apps?act=manage
+    - [x] Тип приложения: **Мини-приложение** (для бесшовной авторизации) + **Сайт** (для VK ID)
+    - [x] Получаем **один** набор VK_APP_ID и VK_APP_SECRET для всего приложения
+    - [x] Эти секреты используются для:
       - Валидации `vk-params` в Mini App (аналог Telegram `initData`)
-      - OAuth авторизации в Standalone/Сайт режиме
-    - [ ] Устанавливаются в `.env` на уровне сервера (один раз)
-  - [ ] **access_token** — это **индивидуальный токен каждого пользователя**
-    - [ ] В Mini App: получаем через `vk-params` (бесшовная авторизация)
-    - [ ] В Standalone/Сайт: получаем через OAuth redirect
-    - [ ] Хранится в БД (зашифрованно) в таблице `vk_accounts` для каждого пользователя отдельно
-    - [ ] Используется для работы с VK API от имени конкретного пользователя
-  - [ ] VK_REDIRECT_URI (Callback URL для OAuth, только для Standalone/Сайт) — требуется установка в `.env`
+      - VK ID авторизации в Standalone/Сайт режиме (через id.vk.com)
+    - [x] Устанавливаются в `.env` на уровне сервера (один раз)
+    - [x] **ВАЖНО:** VK_APP_ID НЕ должен быть на фронтенде (используется только на бэкенде)
+  - [x] **access_token** — это **индивидуальный токен каждого пользователя**
+    - [x] В Mini App: получаем через `vk-params` (бесшовная авторизация)
+    - [x] В Standalone/Сайт: получаем через VK ID (silent token → access token)
+    - [x] Хранится в БД (зашифрованно) в таблице `vk_accounts` для каждого пользователя отдельно
+    - [x] Используется для работы с VK API от имени конкретного пользователя
+  - [x] VK_REDIRECT_URI (Callback URL для VK ID) — требуется установка в `.env`
+    - [x] Должен указывать на бэкенд: `http://localhost:4001/api/vk/auth/callback` (dev) или `https://yourdomain.com/api/vk/auth/callback` (prod)
+    - [x] Должен быть настроен в настройках VK приложения
   - [ ] VK_MINIAPP_URL (Публичный HTTPS URL для Mini App) — требуется для деплоя Mini App
-  - [ ] BACKEND_SECRET (ключ для шифрования AES‑GCM) — используется в `encryption.ts` и `vk-account-postgres.ts`, уже должен быть установлен
+  - [x] BACKEND_SECRET (ключ для шифрования AES‑GCM) — используется в `encryption.ts` и `vk-account-postgres.ts`, уже должен быть установлен
   - [ ] VK_SERVICE_PORT (порт для VK Service HTTP API, по умолчанию 4003)
   - [ ] VK_SERVICE_URL (URL для доступа к VK Service из backend, например `http://vk-listener:4003`)
 
 **Важно: отличие от Telegram:**
 
 - В Telegram: каждый пользователь сам получает свои `api_id` и `api_hash` на my.telegram.org и вводит их в форму
-- В VK.com: мы создаём одно приложение, получаем VK_APP_ID/VK_APP_SECRET один раз, а каждый пользователь получает свой `access_token` через OAuth
+- В VK.com: мы создаём одно приложение, получаем VK_APP_ID/VK_APP_SECRET один раз, а каждый пользователь получает свой `access_token` через VK ID (современный подход через id.vk.com) или через Mini App
 
 **Тип приложения VK:**
 
@@ -85,20 +88,22 @@ Backend LLM Worker → RabbitMQ (vk.send_message) → VK Sender → VK.com
 
 - Бесшовная авторизация через `vk-params` (аналог Telegram `initData`)
 - Работает внутри VK (мобильное/веб приложение)
-- Автоматическая авторизация без OAuth redirect
+- Автоматическая авторизация без redirect
 - Единый UI через VKUI компоненты
 - Пользователь уже в VK — минимальные барьеры
 
-**Вариант 2: Standalone/Сайт (fallback)**
+**Вариант 2: Standalone/Сайт (через VK ID — современный подход)**
 
-- OAuth redirect для авторизации
+- VK ID авторизация через `id.vk.com` (не классический OAuth)
+- Использует silent token для автоматической авторизации
 - Работает вне VK (обычный веб-сайт)
 - Больше контроля над UI
 - Для пользователей, которые хотят использовать вне VK
+- **Безопасно:** VK_APP_ID не попадает на фронтенд
 
 **Реализация:**
 
-- Определяем контекст: Mini App (`vk-params` присутствует) или Standalone (OAuth redirect)
+- Определяем контекст: Mini App (`vk-params` присутствует) или Standalone (VK ID redirect)
 - Один backend API поддерживает оба варианта
 - Frontend адаптируется под контекст (VKUI для Mini App, обычный UI для Standalone)
 
@@ -149,11 +154,13 @@ VK авторизация работает в двух режимах:
     - [ ] Получение `access_token` из `vk-params` или через VK API
     - [ ] Сохранение аккаунта в БД (статус: "connected")
     - [ ] Переход к списку диалогов без дополнительных шагов
-  - [ ] **Standalone/Сайт режим** (fallback):
-    - [ ] Кнопка "Получить доступ" → вызов `startConnection()` → получение OAuth URL
-    - [ ] Redirect на `https://oauth.vk.com/authorize` (в новой вкладке или текущей)
-    - [ ] Обработка callback через `handleCallback(code)`
-    - [ ] Отображение статуса подключения
+  - [x] **Standalone/Сайт режим** (через VK ID):
+    - [x] Кнопка "Войти через VK" → редирект на `/api/vk/auth/init`
+    - [x] Бэкенд генерирует UUID и редиректит на `id.vk.com/oauth/authorize`
+    - [x] VK ID обрабатывает авторизацию и редиректит на `/api/vk/auth/callback` с токенами в hash
+    - [x] Бэкенд редиректит на фронтенд `/auth?vk_callback=true&state=uuid`
+    - [x] Фронтенд читает hash, извлекает silent_token и отправляет на `/api/vk/auth/silent`
+    - [x] Бэкенд обменивает silent token на access token и авторизует пользователя
   - [ ] Шаг 2: Выбор диалогов (реализован в `VkConversationsList` после подключения)
     - [ ] Загрузка диалогов через `getConversations()`
     - [ ] Список диалогов с поиском и фильтрацией
@@ -174,11 +181,14 @@ VK авторизация работает в двух режимах:
     - [x] Функция `getUserInfo(accessToken, userIds)` → получение информации о пользователях
     - [x] Обработка rate limits (3 req/sec)
     - [x] Обработка ошибок VK API (error_code, error_msg)
-  - [x] Создать модуль `src/core/vk-oauth.ts`
-    - [x] Функция `getOAuthUrl(appId, redirectUri, scope)` → генерация URL для OAuth
-    - [x] Функция `exchangeCodeForToken(appId, appSecret, code, redirectUri)` → обмен code на access_token
+  - [x] Создать модуль `src/core/vk-oauth.ts` (для интеграции автоответов)
+    - [x] Функция `getOAuthUrl(appId, redirectUri, scope)` → генерация URL для OAuth (используется в vk-user)
+    - [x] Функция `exchangeCodeForToken(appId, appSecret, code, redirectUri)` → обмен code на access_token (используется в vk-user)
     - [x] Функция `refreshAccessToken(appId, appSecret, refreshToken)` → обновление токена (если поддерживается)
     - [x] Функция `validateToken(accessToken)` → проверка валидности токена
+  - [x] Создать модуль `src/core/vk-id.ts` (для основной авторизации через VK ID)
+    - [x] Функция `initVkIdAuth(appId, redirectUri, scope)` → генерация UUID и URL для VK ID
+    - [x] Функция `exchangeSilentToken(appId, silentToken, uuid)` → обмен silent token на access token
   - [x] Хранение `access_token`, `refresh_token` — только зашифрованно (AES‑GCM)
   - [x] Изоляция по `user_id`, ACL, логи
   - [ ] Фоновые задачи для автоответов — реализовано через `vk-listener` (RabbitMQ + LLM worker + sender)
@@ -235,9 +245,16 @@ VK авторизация работает в двух режимах:
       - [x] Если не найден → создание нового пользователя с `vk_id` (аналогично Telegram)
       - [x] Возврат нашего JWT (access/refresh) для дальнейшей работы
       - [x] **Объединение аккаунтов:** один `vk_id` = один аккаунт (как с Telegram)
-    - [x] POST `/api/vk/auth/oauth` (Standalone/Сайт OAuth авторизация)
-      - [x] Принимает `code` из OAuth callback
-      - [x] Обмен `code` на `access_token` через `exchangeCodeForToken`
+    - [x] GET `/api/vk/auth/init` (VK ID авторизация — современный подход)
+      - [x] Генерирует UUID и редиректит на `id.vk.com/oauth/authorize`
+      - [x] Передает `uuid`, `redirect_uri`, `app_id`, `response_type=token`, `scope=email`
+      - [x] Использует `state=uuid` для передачи UUID обратно
+    - [x] GET `/api/vk/auth/callback` (VK ID callback)
+      - [x] Принимает redirect от VK ID (токены в hash, state в query или hash)
+      - [x] Редиректит на фронтенд `/auth?vk_callback=true&state=uuid`
+    - [x] POST `/api/vk/auth/silent` (Обработка silent token)
+      - [x] Принимает `silent_token` и `uuid` от фронтенда
+      - [x] Обменивает silent token на access token через `login.vk.com/token`
       - [x] Получение информации о пользователе через VK API (`users.get`)
       - [x] Поиск пользователя по `vk_id`
       - [x] Если не найден → создание нового пользователя
@@ -424,24 +441,30 @@ VK авторизация работает в двух режимах:
     - [ ] Не открывать HTTP‑порт наружу (API только внутри сети Docker)
 
 - [ ] 12. Фронтенд
-  - [ ] **Основная авторизация через VK** (аналог Telegram Mini App):
-    - [ ] Создать `frontend/src/shared/lib/isVkMiniApp.ts` (аналог `isTelegramMiniApp.ts`)
-      - [ ] Проверка наличия `window.VK` и `vk-params`
-    - [ ] Создать `frontend/src/shared/api/vk.ts` (аналог `telegram.ts`)
-      - [ ] Функция `vkAuth(vkParams: string)` → POST `/api/vk/auth`
-      - [ ] Типы: `VkAuthResponse` с `accessToken`, `refreshToken`, `user`
-    - [ ] Создать `frontend/src/pages/VkPage/index.tsx` (аналог `TelegramPage`)
-      - [ ] Роут `/vk` с инициализацией VK Mini App SDK
-      - [ ] Чтение `vk-params` и POST на `/api/vk/auth`
-      - [ ] Сохранение JWT и переход в компактный чат
-      - [ ] VK SDK инициализация: `window.VK.init({ apiId })`, `window.VK.getParams()`
-    - [ ] Обновить `ProtectedAppLayout`:
-      - [ ] Авто‑логин через VK Mini App (аналог Telegram Mini App)
-      - [ ] Проверка `isVkMiniApp()` и автоматическая авторизация
-      - [ ] Логика: VK Mini App → автоматический вход, Standalone → OAuth redirect
-    - [ ] Создать `frontend/src/features/Auth/VkAuth/index.tsx` (аналог `TelegramAuth`)
-      - [ ] Компонент для авторизации через VK (кнопка "Войти через VK")
-      - [ ] Поддержка и Mini App, и OAuth redirect
+  - [x] **Основная авторизация через VK** (аналог Telegram Mini App):
+    - [x] Создать `frontend/src/shared/lib/isVkMiniApp.ts` (аналог `isTelegramMiniApp.ts`)
+      - [x] Проверка наличия `window.VK` и `vk-params`
+    - [x] Создать `frontend/src/shared/api/vk.ts` (аналог `telegram.ts`)
+      - [x] Функция `vkAuth(vkParams: string)` → POST `/api/vk/auth` (Mini App)
+      - [x] Функция `vkIdAuth(silentToken, uuid)` → POST `/api/vk/auth/silent` (VK ID)
+      - [x] Типы: `VkAuthResponse` с `accessToken`, `refreshToken`, `user`
+    - [x] Создать `frontend/src/pages/VkPage/index.tsx` (аналог `TelegramPage`)
+      - [x] Роут `/vk` для VK Mini App
+      - [x] Чтение `vk-params` и POST на `/api/vk/auth`
+      - [x] Сохранение JWT и переход в чат
+    - [x] Обновить `ProtectedAppLayout`:
+      - [x] Авто‑логин через VK Mini App (аналог Telegram Mini App)
+      - [x] Проверка `isVkMiniApp()` и автоматическая авторизация
+      - [x] Логика: VK Mini App → автоматический вход, Standalone → VK ID redirect
+    - [x] Создать `frontend/src/features/Auth/VkAuth/index.tsx` (аналог `TelegramAuth`)
+      - [x] Компонент для авторизации через VK (кнопка "Войти через VK")
+      - [x] Редирект на `/api/vk/auth/init` (бэкенд формирует VK ID URL)
+      - [x] **Безопасно:** VK_APP_ID не используется на фронтенде
+    - [x] Обновить `frontend/src/pages/AuthPage/index.tsx`:
+      - [x] Обработка VK ID callback (`vk_callback=true`)
+      - [x] Чтение токенов из hash (#access_token=...&silent_token=...&state=uuid)
+      - [x] Отправка silent_token на `/api/vk/auth/silent`
+      - [x] Авторизация пользователя после получения JWT токенов
   - [ ] **Интеграция для автоответов** (Mini App режим, приоритет):
     - [ ] Автоматическая авторизация через `vk-params` в Mini App контексте
     - [ ] Сохранение аккаунта в БД без дополнительных шагов
@@ -612,10 +635,15 @@ if (update[0] === 4 && !(update[2] & 2)) {
 ## Переменные окружения
 
 ```env
-# VK OAuth
+# VK ID авторизация (основная авторизация)
 VK_APP_ID=12345678
 VK_APP_SECRET=abcdefghijklmnopqrstuvwxyz
-VK_REDIRECT_URI=https://yourdomain.com/api/vk-user/callback
+VK_REDIRECT_URI=https://yourdomain.com/api/vk/auth/callback
+# ВАЖНО: VK_REDIRECT_URI должен указывать на бэкенд endpoint /vk/auth/callback
+# Должен быть настроен в настройках VK приложения на https://vk.com/apps?act=manage
+
+# VK OAuth (для интеграции автоответов - используется в vk-user)
+# VK_REDIRECT_URI также используется для интеграции, но может быть другим endpoint
 
 # VK Service
 VK_SERVICE_PORT=4003
@@ -631,20 +659,28 @@ BACKEND_SECRET=your-secret-key
 
 1. **Проверить переменные окружения:**
    - Убедиться, что VK_APP_ID, VK_APP_SECRET, VK_REDIRECT_URI установлены в `.env`
+   - VK_REDIRECT_URI должен указывать на бэкенд: `http://localhost:4001/api/vk/auth/callback` (dev) или `https://yourdomain.com/api/vk/auth/callback` (prod)
+   - Настроить VK_REDIRECT_URI в настройках VK приложения на https://vk.com/apps?act=manage
    - Проверить наличие BACKEND_SECRET
 
-2. **Реализовать фронтенд (приоритет):**
-   - Начать с shared API клиентов (`vk.ts`, `vk-user.ts`)
+2. **Протестировать VK ID авторизацию:**
+   - Проверить, что кнопка "Войти через VK" редиректит на `/api/vk/auth/init`
+   - Проверить, что VK ID редиректит обратно с токенами в hash
+   - Проверить, что silent token обменивается на access token
+   - Проверить, что пользователь авторизуется и получает JWT токены
+
+3. **Реализовать фронтенд для интеграции (приоритет):**
+   - Начать с shared API клиентов (`vk-user.ts`)
    - Создать feature `VkIntegration` (FSD структура)
    - Реализовать UI компоненты (VkIntegrationCard, VkConversationsList)
-   - Добавить роутинг и обработку OAuth callback
+   - Добавить роутинг и обработку OAuth callback для интеграции
 
-3. **После фронтенда — реализовать VK Listener:**
+4. **После фронтенда — реализовать VK Listener:**
    - Создать `src/workers/vk-listener.ts`
    - Настроить Docker интеграцию
    - Добавить npm скрипты
 
-4. **Реализовать VK Sender и LLM Worker:**
+5. **Реализовать VK Sender и LLM Worker:**
    - VK Sender для отправки сообщений
    - LLM Worker для генерации ответов
 

@@ -5,7 +5,11 @@ import {
   getAccessTokenFromVkParams,
 } from "../../../core/vk-auth.js";
 import { getUserInfo } from "../../../core/vk-api.js";
-import { exchangeCodeForToken } from "../../../core/vk-oauth.js";
+import {
+  initVkIdAuth,
+  exchangeSilentToken,
+  exchangeCodeForToken,
+} from "../../../core/vk-id.js";
 import { findUserByVkId, createUser } from "../../../core/user-postgres.js";
 import { createSession } from "../../../core/session.js";
 import {
@@ -149,61 +153,94 @@ export async function handleVkAuth(
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:8002";
 
 /**
- * GET /vk/auth/oauth/callback - VK OAuth callback (обработка redirect от VK)
+ * GET /vk/auth/init - Инициация VK ID авторизации (современный подход)
+ * Генерирует UUID и редиректит на id.vk.com
  */
-export async function handleVkOAuthCallback(
+export async function handleVkIdInit(
   fastify: FastifyInstance,
   request: any,
   reply: FastifyReply
 ) {
-  const { code, error } = request.query as { code?: string; error?: string };
-
-  if (error) {
-    fastify.log.warn(`VK OAuth error: ${error}`);
-    return reply.redirect(`${FRONTEND_URL}/auth?error=vk_oauth_denied`);
-  }
-
-  if (!code) {
-    return reply.redirect(`${FRONTEND_URL}/auth?error=missing_code`);
-  }
-
-  // Передаем code через query в handleVkOAuth
-  return handleVkOAuth(fastify, { query: { code }, body: {} } as any, reply);
-}
-
-/**
- * POST /vk/auth/oauth - VK OAuth авторизация (для Standalone/Сайт)
- * GET /vk/auth/oauth/callback - обрабатывается через handleVkOAuthCallback
- */
-export async function handleVkOAuth(
-  fastify: FastifyInstance,
-  request: any,
-  reply: FastifyReply
-) {
-  // Поддерживаем и GET (query) и POST (body)
-  const code = (request.query as { code?: string })?.code || 
-               (request.body as { code?: string })?.code;
-
-  if (!code) {
-    return reply.redirect(`${FRONTEND_URL}/auth?error=missing_code`);
-  }
-
   const appId = process.env.VK_APP_ID;
-  const appSecret = process.env.VK_APP_SECRET;
   const redirectUri = process.env.VK_REDIRECT_URI;
 
-  if (!appId || !appSecret || !redirectUri) {
-    fastify.log.error("VK_APP_ID, VK_APP_SECRET or VK_REDIRECT_URI is not set");
+  if (!appId || !redirectUri) {
+    fastify.log.error("VK_APP_ID or VK_REDIRECT_URI is not set");
     return reply.status(500).send({ error: "Server configuration error" });
   }
 
   try {
-    // Обмен code на access_token
+    // Генерируем UUID и формируем URL с state=uuid
+    // VK ID вернет state обратно в hash или query параметрах
+    const { uuid, authUrl } = initVkIdAuth(appId, redirectUri, "email");
+    fastify.log.info(`🔐 Инициация VK ID авторизации с UUID: ${uuid}`);
+    return reply.redirect(authUrl);
+  } catch (error) {
+    fastify.log.error(`❌ Ошибка инициации VK ID: ${error}`);
+    return reply.status(500).send({ error: "Failed to initialize VK ID auth" });
+  }
+}
+
+/**
+ * GET /vk/auth/callback - VK ID callback (обработка redirect от id.vk.com)
+ * VK ID редиректит с токенами в hash (#access_token=...&silent_token=...&state=uuid)
+ * State содержит UUID, который мы передали при инициации
+ * Hash не доступен на сервере, поэтому редиректим на фронтенд для обработки
+ */
+export async function handleVkIdCallback(
+  fastify: FastifyInstance,
+  request: any,
+  reply: FastifyReply
+) {
+  // VK ID возвращает токены в hash, который не доступен на сервере
+  // State (UUID) может быть в query параметрах (если VK ID добавил его туда)
+  const state = (request.query as { state?: string })?.state;
+
+  // Редиректим на фронтенд, который обработает hash и отправит на /vk/auth/silent
+  // UUID будет в hash (state) или можно передать через query
+  if (state) {
+    return reply.redirect(
+      `${FRONTEND_URL}/auth?vk_callback=true&state=${state}`
+    );
+  }
+  return reply.redirect(`${FRONTEND_URL}/auth?vk_callback=true`);
+}
+
+/**
+ * POST /vk/auth/code - Обработка code от VK ID SDK
+ * Фронтенд отправляет code и device_id от VK ID SDK, обмениваем на access_token и авторизуем пользователя
+ */
+export async function handleVkIdCode(
+  fastify: FastifyInstance,
+  request: any,
+  reply: FastifyReply
+) {
+  const { code, device_id } = request.body as {
+    code?: string;
+    device_id?: string;
+  };
+
+  if (!code || !device_id) {
+    return reply.status(400).send({
+      error: "code and device_id are required",
+    });
+  }
+
+  const appId = process.env.VK_APP_ID;
+  const appSecret = process.env.VK_APP_SECRET;
+
+  if (!appId || !appSecret) {
+    fastify.log.error("VK_APP_ID or VK_APP_SECRET is not set");
+    return reply.status(500).send({ error: "Server configuration error" });
+  }
+
+  try {
+    // Обмен code на access token
     const tokenResponse = await exchangeCodeForToken(
       appId,
       appSecret,
       code,
-      redirectUri
+      device_id
     );
 
     const { access_token, user_id: vkUserId } = tokenResponse;
@@ -250,7 +287,7 @@ export async function handleVkOAuth(
         vkId: vkUserId,
       });
 
-      fastify.log.info(`✅ Создан новый пользователь из VK OAuth: ${user.id}`);
+      fastify.log.info(`✅ Создан новый пользователь из VK ID: ${user.id}`);
     }
 
     // Генерация JWT токенов
@@ -271,14 +308,135 @@ export async function handleVkOAuth(
       picture: user.picture ?? "",
     });
 
-    fastify.log.info(`🔐 VK OAuth авторизация успешна: ${user.id}`);
-    
-    // Редирект на фронтенд с токенами в URL (как Google OAuth)
-    return reply.redirect(
-      `${FRONTEND_URL}/app?token=${accessTokenJWT}&refresh=${refreshTokenJWT}`
-    );
+    fastify.log.info(`🔐 VK ID авторизация успешна: ${user.id}`);
+
+    return {
+      accessToken: accessTokenJWT,
+      refreshToken: refreshTokenJWT,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+      },
+    };
   } catch (error) {
-    fastify.log.error(`❌ Ошибка VK OAuth авторизации: ${error}`);
-    return reply.redirect(`${FRONTEND_URL}/auth?error=vk_oauth_failed`);
+    fastify.log.error(`❌ Ошибка VK ID авторизации: ${error}`);
+    return reply.status(500).send({ error: "Internal server error" });
+  }
+}
+
+/**
+ * POST /vk/auth/silent - Обработка silent token от VK ID
+ * Фронтенд отправляет silent_token, обмениваем на access_token и авторизуем пользователя
+ * @deprecated Используйте handleVkIdCode для работы с VK ID SDK
+ */
+export async function handleVkIdSilent(
+  fastify: FastifyInstance,
+  request: any,
+  reply: FastifyReply
+) {
+  const { silent_token, uuid } = request.body as {
+    silent_token?: string;
+    uuid?: string;
+  };
+
+  if (!silent_token || !uuid) {
+    return reply.status(400).send({
+      error: "silent_token and uuid are required",
+    });
+  }
+
+  const appId = process.env.VK_APP_ID;
+
+  if (!appId) {
+    fastify.log.error("VK_APP_ID is not set");
+    return reply.status(500).send({ error: "Server configuration error" });
+  }
+
+  try {
+    // Обмен silent token на access token
+    const tokenResponse = await exchangeSilentToken(appId, silent_token, uuid);
+
+    const { access_token, user_id: vkUserId } = tokenResponse;
+
+    // Получение информации о пользователе через VK API
+    let vkUserInfo: {
+      id: number;
+      first_name: string;
+      last_name: string;
+      photo_200?: string;
+    };
+    try {
+      const users = await getUserInfo(access_token, [vkUserId]);
+      const userInfo = users[0];
+      if (!userInfo) {
+        throw new Error("User info not found");
+      }
+      vkUserInfo = {
+        id: userInfo.id,
+        first_name: userInfo.first_name,
+        last_name: userInfo.last_name,
+        ...(userInfo.photo_200 && { photo_200: userInfo.photo_200 }),
+      };
+    } catch (error) {
+      fastify.log.error(`Failed to get VK user info: ${error}`);
+      return reply
+        .status(500)
+        .send({ error: "Failed to get user info from VK" });
+    }
+
+    // Поиск существующего пользователя по vk_id
+    let user = await findUserByVkId(vkUserId);
+
+    // Если пользователь не найден, создаём нового
+    if (!user) {
+      const fullName = `${vkUserInfo.first_name}${
+        vkUserInfo.last_name ? ` ${vkUserInfo.last_name}` : ""
+      }`;
+
+      user = await createUser({
+        email: `vk_${vkUserId}@vk.local`,
+        name: fullName,
+        ...(vkUserInfo.photo_200 && { picture: vkUserInfo.photo_200 }),
+        vkId: vkUserId,
+      });
+
+      fastify.log.info(`✅ Создан новый пользователь из VK ID: ${user.id}`);
+    }
+
+    // Генерация JWT токенов
+    const accessTokenJWT = generateAccessToken({
+      userId: user.id,
+      email: user.email,
+    });
+
+    const refreshTokenJWT = generateRefreshToken({
+      userId: user.id,
+      email: user.email,
+    });
+
+    // Создание сессии
+    await createSession(user.id, {
+      email: user.email,
+      name: user.name,
+      picture: user.picture ?? "",
+    });
+
+    fastify.log.info(`🔐 VK ID авторизация успешна: ${user.id}`);
+
+    return {
+      accessToken: accessTokenJWT,
+      refreshToken: refreshTokenJWT,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+      },
+    };
+  } catch (error) {
+    fastify.log.error(`❌ Ошибка VK ID авторизации: ${error}`);
+    return reply.status(500).send({ error: "Internal server error" });
   }
 }

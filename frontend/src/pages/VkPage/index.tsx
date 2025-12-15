@@ -31,15 +31,8 @@ export const VkPage = () => {
       return;
     }
 
-    const appId = import.meta.env.VITE_VK_APP_ID;
-    if (appId && window.VK) {
-      // Инициализация VK SDK
-      try {
-        window.VK.init({ apiId: Number(appId) });
-      } catch (err) {
-        console.error("Ошибка инициализации VK SDK:", err);
-      }
-    }
+    // VK Mini App SDK инициализируется автоматически
+    // vk-params уже содержит все необходимые данные для авторизации
 
     // Если уже авторизован и мы внутри VK, просто переходим в чат
     if (isAuthenticated) {
@@ -126,4 +119,3 @@ export const VkPage = () => {
     </div>
   );
 };
-
