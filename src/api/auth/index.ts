@@ -6,13 +6,7 @@ import {
   handleTelegramAuth,
   handleTelegramWebAuth,
 } from "./handlers/telegram.js";
-import {
-  handleVkAuth,
-  handleVkIdInit,
-  handleVkIdCallback,
-  handleVkIdCode,
-  handleVkIdSilent,
-} from "./handlers/vk.js";
+import { handleVkAuth, handleVkIdLogin } from "./handlers/vk.js";
 
 export async function authRoutes(fastify: FastifyInstance) {
   // Google OAuth
@@ -50,18 +44,9 @@ export async function authRoutes(fastify: FastifyInstance) {
   fastify.post("/vk/auth", async (request, reply) =>
     handleVkAuth(fastify, request, reply)
   );
-  // VK ID авторизация (современный подход через SDK)
-  fastify.post("/vk/auth/code", async (request, reply) =>
-    handleVkIdCode(fastify, request, reply)
-  );
-  // Старые endpoints (для обратной совместимости, если нужны)
-  fastify.get("/vk/auth/init", async (request, reply) =>
-    handleVkIdInit(fastify, request, reply)
-  );
-  fastify.get("/vk/auth/callback", async (request, reply) =>
-    handleVkIdCallback(fastify, request, reply)
-  );
-  fastify.post("/vk/auth/silent", async (request, reply) =>
-    handleVkIdSilent(fastify, request, reply)
+
+  // VK ID Web login: frontend получает access_token через @vkid/sdk и отдаёт сюда на верификацию
+  fastify.post("/vk/auth/vkid-login", async (request, reply) =>
+    handleVkIdLogin(fastify, request, reply)
   );
 }

@@ -55,6 +55,7 @@ export interface TelegramSubscription {
     role_id: string | null;
     mention_only: boolean;
     access_hash: string | null;
+    next_allowed_at: Date | null;
     created_at: Date;
     updated_at: Date;
 }
@@ -69,4 +70,18 @@ export declare function upsertSubscriptions(accountId: string, userId: string, i
     mention_only?: boolean | null;
     access_hash?: string | null;
 }>): Promise<void>;
+/**
+ * Обновить время, когда можно отправить следующее сообщение в чат
+ * @param accountId - ID Telegram аккаунта
+ * @param peerId - ID чата
+ * @param seconds - Количество секунд до следующей отправки (если null, то разблокировать)
+ */
+export declare function updateNextAllowedAt(accountId: string, peerId: string, seconds: number | null): Promise<void>;
+/**
+ * Проверить, можно ли отправить сообщение в чат сейчас
+ * @param accountId - ID Telegram аккаунта
+ * @param peerId - ID чата
+ * @returns true если можно отправить, false если заблокирован
+ */
+export declare function canSendMessage(accountId: string, peerId: string): Promise<boolean>;
 //# sourceMappingURL=telegram-account-postgres.d.ts.map

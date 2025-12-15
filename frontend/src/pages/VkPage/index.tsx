@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader } from "@consta/uikit/Loader";
 import { Text } from "@consta/uikit/Text";
 import { useAuth } from "@shared/hooks/useAuth";
-import { vkAuth } from "@shared/api/vk";
+import { vkMiniAppAuth } from "@shared/api/vk";
 import { getVkParams, isVkMiniApp } from "@shared/lib/isVkMiniApp";
 
 // Расширяем Window для TypeScript
@@ -53,7 +53,7 @@ export const VkPage = () => {
     const authenticate = async () => {
       try {
         setLoading(true);
-        const response = await vkAuth(vkParams);
+        const response = await vkMiniAppAuth(vkParams);
 
         // Сохраняем токены
         login(response.accessToken, response.refreshToken);

@@ -1,1 +1,1 @@
-{"version":3,"file":"eventSender.d.ts","sourceRoot":"","sources":["../../../src/workers/telegram/eventSender.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,YAAY,CAAC;AAEhD,qBAAa,WAAW;IACtB,OAAO,CAAC,UAAU,CAAS;;IAMrB,IAAI,CAAC,KAAK,EAAE,aAAa,GAAG,OAAO,CAAC,IAAI,CAAC;CAkBhD"}
+{"version":3,"file":"eventSender.d.ts","sourceRoot":"","sources":["../../../src/workers/telegram/eventSender.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,YAAY,CAAC;AAGhD,qBAAa,WAAW;IACtB;;OAEG;IACG,IAAI,CAAC,KAAK,EAAE,aAAa,GAAG,OAAO,CAAC,IAAI,CAAC;CAwBhD"}

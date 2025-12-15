@@ -7,7 +7,7 @@ import { WorkspaceProvider, RoleProvider } from "@/app/providers";
 import { isTelegramMiniApp } from "@/shared/lib/isTelegramMiniApp";
 import { telegramAuth } from "@/shared/api/telegram";
 import { isVkMiniApp, getVkParams } from "@/shared/lib/isVkMiniApp";
-import { vkAuth } from "@/shared/api/vk";
+import { vkMiniAppAuth } from "@/shared/api/vk";
 
 export const ProtectedAppLayout = () => {
   const { login, isAuthenticated } = useAuth();
@@ -82,7 +82,7 @@ export const ProtectedAppLayout = () => {
       }
 
       // Пытаемся авторизоваться через /vk/auth
-      vkAuth(vkParams)
+      vkMiniAppAuth(vkParams)
         .then(res => {
           login(res.accessToken, res.refreshToken);
           // В Mini App можно сразу перейти в основной экран

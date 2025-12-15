@@ -7,6 +7,16 @@ export declare function handleTelegramEvent(fastify: FastifyInstance, request: a
     success: boolean;
     skipped: boolean;
     reason: string;
+    message?: never;
+    error?: never;
+    processed?: never;
+    answer?: never;
+    stats?: never;
+} | {
+    success: boolean;
+    skipped: boolean;
+    reason: string;
+    message: string;
     error?: never;
     processed?: never;
     answer?: never;
@@ -16,6 +26,7 @@ export declare function handleTelegramEvent(fastify: FastifyInstance, request: a
     error: string;
     skipped?: never;
     reason?: never;
+    message?: never;
     processed?: never;
     answer?: never;
     stats?: never;
@@ -28,6 +39,7 @@ export declare function handleTelegramEvent(fastify: FastifyInstance, request: a
     };
     skipped?: never;
     reason?: never;
+    message?: never;
     error?: never;
 }>;
 //# sourceMappingURL=events.d.ts.map

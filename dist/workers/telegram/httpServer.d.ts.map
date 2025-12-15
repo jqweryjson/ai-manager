@@ -1,0 +1,1 @@
+{"version":3,"file":"httpServer.d.ts","sourceRoot":"","sources":["../../../src/workers/telegram/httpServer.ts"],"names":[],"mappings":"AAMA,UAAU,kBAAkB;IAC1B,cAAc,CAAC,SAAS,EAAE,MAAM,EAAE,MAAM,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAAC;IACjE,SAAS,IAAI,OAAO,CAAC;CACtB;AAOD,wBAAsB,eAAe,CAAC,UAAU,EAAE,kBAAkB,iBAmFnE"}

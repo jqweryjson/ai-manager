@@ -1,6 +1,6 @@
 import { TelegramClient } from "telegram";
-import { StringSession } from "telegram/sessions";
-import { Api } from "telegram/tl";
+import { StringSession } from "telegram/sessions/index.js";
+import { Api } from "telegram/tl/index.js";
 // Фильтруем TIMEOUT ошибки из GramJS update loop
 // Это нормальное поведение для long-polling, но не должно засорять консоль
 const originalConsoleError = console.error;
@@ -226,12 +226,38 @@ function parseDialog(d) {
                 accessHash = String(entity.accessHash);
             }
         }
-        else if (entityType === "Chat" || entity?._ === "Chat") {
-            peer_type = "chat";
-            peerIdStr = String(entity.id);
-        }
-        else if (typeof entity?.id !== "undefined") {
-            peerIdStr = String(entity.id);
+        else if (entityType === "Chat" ||
+            entityType === "ChatForbidden" ||
+            entity?._ === "Chat" ||
+            entity?._ === "ChatForbidden") {
+            // Обычные группы, которые могли быть мигрированы в супергруппы
+            // const migrated =
+            //   entity?.migratedTo ||
+            //   entity?.migrated_to ||
+            //   (entity?.migrated_to_id
+            //     ? {
+            //         channelId: entity.migrated_to_id,
+            //         accessHash: entity.migrated_access_hash,
+            //       }
+            //     : null);
+            //   if (
+            //     migrated &&
+            //     (migrated.channelId || migrated.chatId || migrated.userId)
+            //   ) {
+            //     // Telegram больше не использует старый Chat ID — подменяем на актуальный channelId
+            //     peer_type = "chat";
+            //     const migratedId =
+            //       migrated.channelId || migrated.chatId || migrated.userId;
+            //     peerIdStr = String(migratedId);
+            //     if (typeof migrated.accessHash !== "undefined") {
+            //       accessHash = String(migrated.accessHash);
+            //     }
+            //   } else {
+            //     peer_type = "chat";
+            //     peerIdStr = String(entity.id);
+            //   }
+            // } else if (typeof entity?.id !== "undefined") {
+            //   peerIdStr = String(entity.id);
         }
         if (peerIdStr) {
             return {

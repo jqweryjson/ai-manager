@@ -1,4 +1,4 @@
-import { Api } from "telegram/tl";
+import { Api } from "telegram/tl/index.js";
 import bigInt from "big-integer";
 import { getTelegramAccount, decryptTelegramAccount, } from "./telegram-account-postgres.js";
 import { createClient } from "./telegram-mtproto.js";
@@ -18,6 +18,30 @@ async function safeDisconnect(client) {
         }
         throw error;
     }
+}
+/**
+ * Парсинг FLOOD_WAIT из ошибки Telegram
+ * @param error - Ошибка от Telegram API
+ * @returns Количество секунд ожидания или null, если это не FLOOD_WAIT
+ */
+function parseFloodWait(error) {
+    // Проверяем, есть ли поле seconds в ошибке
+    if (error?.seconds && typeof error.seconds === "number") {
+        return error.seconds;
+    }
+    // Проверяем errorMessage на наличие FLOOD_WAIT
+    const errorMessage = error?.errorMessage || error?.message || String(error);
+    // Паттерн: "FLOOD_WAIT_818" или "A wait of 818 seconds"
+    const floodWaitMatch = errorMessage.match(/FLOOD_WAIT[_\s](\d+)/i);
+    if (floodWaitMatch) {
+        return parseInt(floodWaitMatch[1], 10);
+    }
+    // Паттерн: "A wait of 818 seconds"
+    const waitMatch = errorMessage.match(/wait of (\d+) seconds/i);
+    if (waitMatch) {
+        return parseInt(waitMatch[1], 10);
+    }
+    return null;
 }
 /**
  * Отправка сообщения в Telegram от имени user-бота
@@ -42,6 +66,7 @@ export async function sendTelegramMessage(accountId, userId, peerId, peerType, t
         // Строим Peer в зависимости от типа
         // GramJS использует BigInteger из библиотеки big-integer
         const idBigInt = bigInt(peerId);
+        console.log(`[sendTelegramMessage] peerId=${peerId}, peerType=${peerType}, accessHash=${accessHash || "null"}`);
         let entity;
         if (peerType === "user") {
             if (accessHash) {
@@ -55,7 +80,16 @@ export async function sendTelegramMessage(accountId, userId, peerId, peerType, t
             }
         }
         else if (peerType === "chat") {
-            entity = new Api.PeerChat({ chatId: idBigInt });
+            if (accessHash) {
+                // Супергруппа (megagroup) отдаёт peer_type=chat, но требует channel peer
+                entity = new Api.InputPeerChannel({
+                    channelId: idBigInt,
+                    accessHash: bigInt(accessHash),
+                });
+            }
+            else {
+                entity = new Api.PeerChat({ chatId: idBigInt });
+            }
         }
         else {
             if (!accessHash) {
@@ -67,9 +101,31 @@ export async function sendTelegramMessage(accountId, userId, peerId, peerType, t
             });
         }
         await client.sendMessage(entity, { message: text });
+        console.log(`✅ Сообщение успешно отправлено в Telegram: ${peerId} (${peerType})`);
+        return {
+            success: true,
+            floodWaitSeconds: null,
+        };
     }
     catch (error) {
-        throw new Error(`Failed to send Telegram message: ${error instanceof Error ? error.message : String(error)}`);
+        // Парсим FLOOD_WAIT из ошибки
+        const floodWaitSeconds = parseFloodWait(error);
+        if (floodWaitSeconds !== null) {
+            console.error(`⏸️  FLOOD_WAIT: Чат ${peerId} заблокирован на ${floodWaitSeconds} секунд`);
+            return {
+                success: false,
+                floodWaitSeconds,
+                error: `FLOOD_WAIT: A wait of ${floodWaitSeconds} seconds is required`,
+            };
+        }
+        // Другая ошибка
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`❌ Ошибка отправки сообщения в Telegram: ${errorMessage}`);
+        return {
+            success: false,
+            floodWaitSeconds: null,
+            error: `Failed to send Telegram message: ${errorMessage}`,
+        };
     }
     finally {
         await safeDisconnect(client);

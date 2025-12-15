@@ -1,0 +1,67 @@
+import Fastify from "fastify";
+export async function startHttpServer(controller) {
+    const isProd = process.env.NODE_ENV === "production";
+    const app = Fastify({
+        logger: isProd
+            ? true
+            : {
+                transport: {
+                    target: "pino-pretty",
+                    options: {
+                        colorize: true,
+                        translateTime: "HH:MM:ss",
+                        ignore: "pid,hostname,time",
+                        singleLine: true,
+                        messageFormat: "{msg}",
+                    },
+                },
+            },
+    });
+    app.post("/internal/listener/reload-account", async (request, reply) => {
+        const body = (request.body || {});
+        const { account_id, user_id } = body;
+        if (!account_id || !user_id) {
+            request.log.warn(`⚠️  Неверный payload для reload-account: ${JSON.stringify(body)}`);
+            return reply.status(400).send({
+                error: "invalid_payload",
+                message: "account_id и user_id обязательны",
+            });
+        }
+        try {
+            await controller.startListening(account_id, user_id);
+            request.log.info(`✅ Reload account requested: account_id=${account_id}, user_id=${user_id}`);
+            return {
+                success: true,
+                account_id,
+                user_id,
+            };
+        }
+        catch (error) {
+            request.log.error(`❌ Ошибка при reload-account для ${account_id}: ${error}`);
+            return reply.status(500).send({
+                error: "listener_reload_failed",
+            });
+        }
+    });
+    app.get("/internal/listener/status", async (_request, reply) => {
+        try {
+            const status = controller.getStatus();
+            return reply.send(status);
+        }
+        catch (error) {
+            return reply.status(500).send({
+                error: "status_failed",
+            });
+        }
+    });
+    const port = Number(process.env.TELEGRAM_SERVICE_PORT) || 4002;
+    try {
+        await app.listen({ port, host: "0.0.0.0" });
+        app.log.info(`📡 Telegram Service HTTP API запущен на порту ${port}`);
+    }
+    catch (error) {
+        app.log.error(`❌ Не удалось запустить Telegram Service HTTP API: ${error}`);
+        throw error;
+    }
+}
+//# sourceMappingURL=httpServer.js.map

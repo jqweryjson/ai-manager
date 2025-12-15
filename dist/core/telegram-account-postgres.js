@@ -155,6 +155,7 @@ export async function listSubscriptions(accountId, userId) {
             role_id: row.role_id || null,
             mention_only: row.mention_only ?? true,
             access_hash: row.access_hash || null,
+            next_allowed_at: row.next_allowed_at || null,
             created_at: row.created_at,
             updated_at: row.updated_at,
         }));
@@ -205,6 +206,43 @@ export async function upsertSubscriptions(accountId, userId, items) {
                 accessHashValue,
             ]);
         }
+    });
+}
+/**
+ * Обновить время, когда можно отправить следующее сообщение в чат
+ * @param accountId - ID Telegram аккаунта
+ * @param peerId - ID чата
+ * @param seconds - Количество секунд до следующей отправки (если null, то разблокировать)
+ */
+export async function updateNextAllowedAt(accountId, peerId, seconds) {
+    await withPostgres(async (client) => {
+        const nextAllowedAt = seconds
+            ? new Date(Date.now() + seconds * 1000)
+            : null;
+        await client.query(`UPDATE telegram_subscriptions
+       SET next_allowed_at = $1, updated_at = NOW()
+       WHERE telegram_account_id = $2 AND peer_id = $3`, [nextAllowedAt, accountId, parseInt(peerId, 10)]);
+    });
+}
+/**
+ * Проверить, можно ли отправить сообщение в чат сейчас
+ * @param accountId - ID Telegram аккаунта
+ * @param peerId - ID чата
+ * @returns true если можно отправить, false если заблокирован
+ */
+export async function canSendMessage(accountId, peerId) {
+    return await withPostgres(async (client) => {
+        const res = await client.query(`SELECT next_allowed_at FROM telegram_subscriptions
+       WHERE telegram_account_id = $1 AND peer_id = $2`, [accountId, parseInt(peerId, 10)]);
+        if (res.rows.length === 0) {
+            return false; // Подписка не найдена
+        }
+        const nextAllowedAt = res.rows[0].next_allowed_at;
+        if (!nextAllowedAt) {
+            return true; // Нет блокировки
+        }
+        // Проверяем, прошло ли время блокировки
+        return new Date() >= new Date(nextAllowedAt);
     });
 }
 //# sourceMappingURL=telegram-account-postgres.js.map

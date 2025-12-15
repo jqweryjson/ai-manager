@@ -2,6 +2,7 @@ import { closePostgresPool } from "../core/postgres.js";
 import { TelegramClientManager } from "./telegram/clientManager.js";
 import { MessageProcessor } from "./telegram/messageProcessor.js";
 import { EventSender } from "./telegram/eventSender.js";
+import { startHttpServer } from "./telegram/httpServer.js";
 class TelegramListenerManager {
     clients = new Map();
     isShuttingDown = false;
@@ -92,17 +93,17 @@ class TelegramListenerManager {
             console.log(`⏭️  Пропущено исходящее сообщение от ${accountId} в ${message.peer_id?.userId || message.peer_id?.chatId || message.peer_id?.channelId || "unknown"}`);
             return;
         }
+        console.log("🔎 Детали входящего сообщения", {
+            accountId,
+            message: message.message.substring(0, 100) ?? message.text.substring(0, 100),
+        });
         // Получаем peer_id
         const peer_id = this.messageProcessor.extractPeerId(message.peer_id || message.peerId);
         if (!peer_id) {
             console.log(`⚠️  Не удалось извлечь peer_id из события. peer_id:`, JSON.stringify(message.peer_id ?? message.peerId));
             console.log("🔍 Структура message:", {
-                id: message.id,
-                className: message.className,
                 peer_id: message.peer_id,
                 peerId: message.peerId,
-                toId: message.toId,
-                fromId: message.fromId,
             });
             return;
         }
@@ -154,11 +155,18 @@ class TelegramListenerManager {
 }
 // Создаем единственный экземпляр менеджера
 const manager = new TelegramListenerManager();
+async function bootstrap() {
+    try {
+        await manager.initialize();
+        await startHttpServer(manager);
+    }
+    catch (error) {
+        console.error("💥 Критическая ошибка при запуске Telegram Listener:", error);
+        process.exit(1);
+    }
+}
 // Инициализация при старте
-manager.initialize().catch(error => {
-    console.error("💥 Критическая ошибка при инициализации:", error);
-    process.exit(1);
-});
+bootstrap();
 // Graceful shutdown при SIGTERM (Docker stop)
 process.on("SIGTERM", async () => {
     console.log("📡 Получен SIGTERM");

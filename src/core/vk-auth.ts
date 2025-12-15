@@ -15,23 +15,34 @@ export function validateVkParams(vkParams: string, appSecret: string): boolean {
       return false;
     }
 
-    // Удаляем sign из параметров для проверки
-    urlParams.delete("sign");
-
-    // Сортируем параметры по ключу
+    // VK Mini Apps: подписываются параметры vk_* (без sign),
+    // строка собирается как key=value&..., ключи сортируются по алфавиту.
     const dataCheckString = Array.from(urlParams.entries())
+      .filter(([key]) => key !== "sign" && key.startsWith("vk_"))
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, value]) => `${key}=${value}`)
       .join("&");
 
-    // Вычисляем MD5 хэш от dataCheckString + appSecret
-    const calculatedSign = crypto
+    const hmac = crypto
+      .createHmac("sha256", appSecret)
+      .update(dataCheckString)
+      .digest("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
+
+    if (hmac === sign) {
+      return true;
+    }
+
+    // Backward-compat: старый алгоритм (MD5), если где-то был закеширован/использован.
+    // Можно будет удалить позже после подтверждения, что везде HMAC.
+    const legacyMd5 = crypto
       .createHash("md5")
       .update(dataCheckString + appSecret)
       .digest("hex");
 
-    // Сравниваем подписи
-    return calculatedSign === sign;
+    return legacyMd5 === sign;
   } catch (error) {
     return false;
   }
@@ -42,7 +53,7 @@ export function validateVkParams(vkParams: string, appSecret: string): boolean {
  */
 export interface VkUserData {
   id: number;
-  first_name: string;
+  first_name?: string;
   last_name?: string;
   photo?: string;
   photo_rec?: string;
@@ -53,31 +64,13 @@ export function parseVkParams(vkParams: string): VkUserData | null {
   try {
     const urlParams = new URLSearchParams(vkParams);
     const vkUserId = urlParams.get("vk_user_id");
-    const vkAppId = urlParams.get("vk_app_id");
-    const vkIsAppUser = urlParams.get("vk_is_app_user");
-    const vkAreNotificationsEnabled = urlParams.get(
-      "vk_are_notifications_enabled"
-    );
-    const vkLanguage = urlParams.get("vk_language");
-    const vkRef = urlParams.get("vk_ref");
-    const vkAccessTokenSettings = urlParams.get("vk_access_token_settings");
-    const vkViewerGroupRole = urlParams.get("vk_viewer_group_role");
-    const vkPlatform = urlParams.get("vk_platform");
-    const vkIsFavorite = urlParams.get("vk_is_favorite");
-    const sign = urlParams.get("sign");
 
     if (!vkUserId) {
       return null;
     }
 
-    // В vk-params может быть access_token, но для получения данных пользователя
-    // нужно использовать VK API с этим токеном
     return {
       id: parseInt(vkUserId, 10),
-      first_name: "", // Будет получено через VK API
-      last_name: "",
-      photo: "",
-      photo_rec: "",
     };
   } catch (error) {
     return null;

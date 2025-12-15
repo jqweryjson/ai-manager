@@ -1,24 +1,28 @@
+import { publishTelegramEvent } from "../../core/queue-publisher.js";
 export class EventSender {
-    backendUrl;
-    constructor() {
-        this.backendUrl = process.env.BACKEND_URL || "http://backend:4001/api";
-    }
+    /**
+     * Отправка события в очередь RabbitMQ (telegram.events)
+     */
     async send(event) {
         try {
-            const url = `${this.backendUrl}/internal/tg-user/events`;
-            const response = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(event),
+            const published = await publishTelegramEvent({
+                type: "send_message",
+                integration: "telegram",
+                account_id: event.account_id,
+                user_id: event.user_id,
+                peer_id: event.peer_id,
+                peer_type: event.peer_type,
+                access_hash: event.access_hash ?? null,
+                workspace_id: event.workspace_id,
+                role_id: event.role_id,
+                message_text: event.message.text ?? "",
             });
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            if (!published) {
+                console.error(`❌ Не удалось опубликовать событие в RabbitMQ для ${event.account_id}/${event.peer_id}`);
             }
         }
         catch (error) {
-            console.error(`❌ Ошибка отправки события:`, error);
+            console.error(`❌ Ошибка отправки события в RabbitMQ:`, error);
         }
     }
 }

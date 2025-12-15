@@ -61,15 +61,16 @@ Backend LLM Worker → RabbitMQ (vk.send_message) → VK Sender → VK.com
       - Валидации `vk-params` в Mini App (аналог Telegram `initData`)
       - VK ID авторизации в Standalone/Сайт режиме (через id.vk.com)
     - [x] Устанавливаются в `.env` на уровне сервера (один раз)
-    - [x] **ВАЖНО:** VK_APP_ID НЕ должен быть на фронтенде (используется только на бэкенде)
+    - [x] **ВАЖНО:** VK_APP_ID — **публичный идентификатор** приложения, он **нужен на фронтенде** для VK ID Web SDK (как `VITE_VK_APP_ID`).
+      - [x] **Секрет** — это только `VK_APP_SECRET` (только на бэкенде).
   - [x] **access_token** — это **индивидуальный токен каждого пользователя**
     - [x] В Mini App: получаем через `vk-params` (бесшовная авторизация)
-    - [x] В Standalone/Сайт: получаем через VK ID (silent token → access token)
+    - [x] В Standalone/Сайт: получаем через VK ID Web SDK: `code + device_id` → `Auth.exchangeCode(...)` → `access_token` → backend верифицирует и выдаёт наши JWT
     - [x] Хранится в БД (зашифрованно) в таблице `vk_accounts` для каждого пользователя отдельно
     - [x] Используется для работы с VK API от имени конкретного пользователя
-  - [x] VK_REDIRECT_URI (Callback URL для VK ID) — требуется установка в `.env`
-    - [x] Должен указывать на бэкенд: `http://localhost:4001/api/vk/auth/callback` (dev) или `https://yourdomain.com/api/vk/auth/callback` (prod)
-    - [x] Должен быть настроен в настройках VK приложения
+  - [x] VK ID Web SDK: `redirectUrl` задаётся на фронтенде (обычно `window.location.origin`) и должен быть настроен в кабинете VK ID
+    - [x] Это **не** backend env-переменная (для логина в AI‑MANAGER)
+  - [x] VK_REDIRECT_URI — используется для **интеграции автоответов** (vk-user OAuth callback), а не для логина через VK ID Web SDK
   - [ ] VK_MINIAPP_URL (Публичный HTTPS URL для Mini App) — требуется для деплоя Mini App
   - [x] BACKEND_SECRET (ключ для шифрования AES‑GCM) — используется в `encryption.ts` и `vk-account-postgres.ts`, уже должен быть установлен
   - [ ] VK_SERVICE_PORT (порт для VK Service HTTP API, по умолчанию 4003)
@@ -94,12 +95,12 @@ Backend LLM Worker → RabbitMQ (vk.send_message) → VK Sender → VK.com
 
 **Вариант 2: Standalone/Сайт (через VK ID — современный подход)**
 
-- VK ID авторизация через `id.vk.com` (не классический OAuth)
-- Использует silent token для автоматической авторизации
+- VK ID авторизация через **VK ID Web SDK** (`@vkid/sdk`)
+- Callback mode (low-code): получаем `code + device_id`, затем делаем `Auth.exchangeCode(...)`
 - Работает вне VK (обычный веб-сайт)
 - Больше контроля над UI
 - Для пользователей, которые хотят использовать вне VK
-- **Безопасно:** VK_APP_ID не попадает на фронтенд
+- **Безопасно:** секретов на фронтенде нет (APP_ID публичный, SECRET — только на бэкенде)
 
 **Реализация:**
 
@@ -154,13 +155,13 @@ VK авторизация работает в двух режимах:
     - [ ] Получение `access_token` из `vk-params` или через VK API
     - [ ] Сохранение аккаунта в БД (статус: "connected")
     - [ ] Переход к списку диалогов без дополнительных шагов
-  - [x] **Standalone/Сайт режим** (через VK ID):
-    - [x] Кнопка "Войти через VK" → редирект на `/api/vk/auth/init`
-    - [x] Бэкенд генерирует UUID и редиректит на `id.vk.com/oauth/authorize`
-    - [x] VK ID обрабатывает авторизацию и редиректит на `/api/vk/auth/callback` с токенами в hash
-    - [x] Бэкенд редиректит на фронтенд `/auth?vk_callback=true&state=uuid`
-    - [x] Фронтенд читает hash, извлекает silent_token и отправляет на `/api/vk/auth/silent`
-    - [x] Бэкенд обменивает silent token на access token и авторизует пользователя
+  - [x] **Standalone/Сайт режим** (через VK ID Web SDK):
+    - [x] На `/auth` рендерим VK ID OAuthList widget (`@vkid/sdk`)
+    - [x] При `LOGIN_SUCCESS`: получаем `code` и `device_id`
+    - [x] Фронтенд делает `Auth.exchangeCode(code, device_id)` → получает `access_token`
+    - [x] Фронтенд отправляет `access_token` на бэкенд: `POST /api/vk/auth/vkid-login`
+    - [x] Бэкенд верифицирует токен через VK ID API `POST https://id.vk.ru/oauth2/user_info?client_id=...`
+    - [x] Бэкенд выдаёт наши JWT (access/refresh)
   - [ ] Шаг 2: Выбор диалогов (реализован в `VkConversationsList` после подключения)
     - [ ] Загрузка диалогов через `getConversations()`
     - [ ] Список диалогов с поиском и фильтрацией
@@ -186,9 +187,8 @@ VK авторизация работает в двух режимах:
     - [x] Функция `exchangeCodeForToken(appId, appSecret, code, redirectUri)` → обмен code на access_token (используется в vk-user)
     - [x] Функция `refreshAccessToken(appId, appSecret, refreshToken)` → обновление токена (если поддерживается)
     - [x] Функция `validateToken(accessToken)` → проверка валидности токена
-  - [x] Создать модуль `src/core/vk-id.ts` (для основной авторизации через VK ID)
-    - [x] Функция `initVkIdAuth(appId, redirectUri, scope)` → генерация UUID и URL для VK ID
-    - [x] Функция `exchangeSilentToken(appId, silentToken, uuid)` → обмен silent token на access token
+  - [x] Создать модуль `src/core/vkid-api.ts` (для основной авторизации через VK ID Web SDK)
+    - [x] Функция `getVkIdUserInfo({ appId, accessToken })` → верификация `access_token` и получение профиля через `POST https://id.vk.ru/oauth2/user_info?client_id=...`
   - [x] Хранение `access_token`, `refresh_token` — только зашифрованно (AES‑GCM)
   - [x] Изоляция по `user_id`, ACL, логи
   - [ ] Фоновые задачи для автоответов — реализовано через `vk-listener` (RabbitMQ + LLM worker + sender)
@@ -239,23 +239,15 @@ VK авторизация работает в двух режимах:
   - [x] **Основная авторизация через VK** (аналог `/api/tg/auth`):
     - [x] POST `/api/vk/auth` (Mini App авторизация)
       - [x] Принимает `vk-params` из Mini App
-      - [x] Валидация HMAC подписи `vk-params` с VK_APP_SECRET
+      - [x] Валидация подписи `vk-params` с VK*APP_SECRET (HMAC-SHA256 base64url по vk*\* параметрам; есть fallback на legacy MD5)
       - [x] Парсинг данных пользователя из `vk-params` (user.id, имя, фото)
       - [x] Поиск пользователя по `vk_id` через `findUserByVkId(vkId)`
       - [x] Если не найден → создание нового пользователя с `vk_id` (аналогично Telegram)
       - [x] Возврат нашего JWT (access/refresh) для дальнейшей работы
       - [x] **Объединение аккаунтов:** один `vk_id` = один аккаунт (как с Telegram)
-    - [x] GET `/api/vk/auth/init` (VK ID авторизация — современный подход)
-      - [x] Генерирует UUID и редиректит на `id.vk.com/oauth/authorize`
-      - [x] Передает `uuid`, `redirect_uri`, `app_id`, `response_type=token`, `scope=email`
-      - [x] Использует `state=uuid` для передачи UUID обратно
-    - [x] GET `/api/vk/auth/callback` (VK ID callback)
-      - [x] Принимает redirect от VK ID (токены в hash, state в query или hash)
-      - [x] Редиректит на фронтенд `/auth?vk_callback=true&state=uuid`
-    - [x] POST `/api/vk/auth/silent` (Обработка silent token)
-      - [x] Принимает `silent_token` и `uuid` от фронтенда
-      - [x] Обменивает silent token на access token через `login.vk.com/token`
-      - [x] Получение информации о пользователе через VK API (`users.get`)
+    - [x] POST `/api/vk/auth/vkid-login` (VK ID Web login)
+      - [x] Принимает `access_token`, полученный на фронтенде через `@vkid/sdk` (`Auth.exchangeCode`)
+      - [x] Верифицирует токен через VK ID API `POST https://id.vk.ru/oauth2/user_info?client_id=...`
       - [x] Поиск пользователя по `vk_id`
       - [x] Если не найден → создание нового пользователя
       - [x] Возврат JWT токенов
@@ -445,8 +437,8 @@ VK авторизация работает в двух режимах:
     - [x] Создать `frontend/src/shared/lib/isVkMiniApp.ts` (аналог `isTelegramMiniApp.ts`)
       - [x] Проверка наличия `window.VK` и `vk-params`
     - [x] Создать `frontend/src/shared/api/vk.ts` (аналог `telegram.ts`)
-      - [x] Функция `vkAuth(vkParams: string)` → POST `/api/vk/auth` (Mini App)
-      - [x] Функция `vkIdAuth(silentToken, uuid)` → POST `/api/vk/auth/silent` (VK ID)
+      - [x] Функция `vkMiniAppAuth(vkParams: string)` → POST `/api/vk/auth` (Mini App)
+      - [x] Функция `vkidLogin(accessToken: string)` → POST `/api/vk/auth/vkid-login` (VK ID Web login)
       - [x] Типы: `VkAuthResponse` с `accessToken`, `refreshToken`, `user`
     - [x] Создать `frontend/src/pages/VkPage/index.tsx` (аналог `TelegramPage`)
       - [x] Роут `/vk` для VK Mini App
@@ -455,16 +447,12 @@ VK авторизация работает в двух режимах:
     - [x] Обновить `ProtectedAppLayout`:
       - [x] Авто‑логин через VK Mini App (аналог Telegram Mini App)
       - [x] Проверка `isVkMiniApp()` и автоматическая авторизация
-      - [x] Логика: VK Mini App → автоматический вход, Standalone → VK ID redirect
+      - [x] Логика: VK Mini App → автоматический вход, Standalone → VK ID Web SDK (на странице /auth)
     - [x] Создать `frontend/src/features/Auth/VkAuth/index.tsx` (аналог `TelegramAuth`)
-      - [x] Компонент для авторизации через VK (кнопка "Войти через VK")
-      - [x] Редирект на `/api/vk/auth/init` (бэкенд формирует VK ID URL)
-      - [x] **Безопасно:** VK_APP_ID не используется на фронтенде
-    - [x] Обновить `frontend/src/pages/AuthPage/index.tsx`:
-      - [x] Обработка VK ID callback (`vk_callback=true`)
-      - [x] Чтение токенов из hash (#access_token=...&silent_token=...&state=uuid)
-      - [x] Отправка silent_token на `/api/vk/auth/silent`
-      - [x] Авторизация пользователя после получения JWT токенов
+      - [x] Компонент для авторизации через VK ID Web SDK (OAuthList widget)
+      - [x] `LOGIN_SUCCESS` → `Auth.exchangeCode(code, device_id)` → `access_token`
+      - [x] `access_token` → `POST /api/vk/auth/vkid-login` → наши JWT
+      - [x] **Безопасно:** на фронтенде только публичный `VITE_VK_APP_ID`; секрет `VK_APP_SECRET` — только на бэке
   - [ ] **Интеграция для автоответов** (Mini App режим, приоритет):
     - [ ] Автоматическая авторизация через `vk-params` в Mini App контексте
     - [ ] Сохранение аккаунта в БД без дополнительных шагов
@@ -638,12 +626,10 @@ if (update[0] === 4 && !(update[2] & 2)) {
 # VK ID авторизация (основная авторизация)
 VK_APP_ID=12345678
 VK_APP_SECRET=abcdefghijklmnopqrstuvwxyz
-VK_REDIRECT_URI=https://yourdomain.com/api/vk/auth/callback
-# ВАЖНО: VK_REDIRECT_URI должен указывать на бэкенд endpoint /vk/auth/callback
-# Должен быть настроен в настройках VK приложения на https://vk.com/apps?act=manage
-
-# VK OAuth (для интеграции автоответов - используется в vk-user)
-# VK_REDIRECT_URI также используется для интеграции, но может быть другим endpoint
+VK_REDIRECT_URI=https://yourdomain.com/api/vk-user/callback
+# ВАЖНО:
+# - Для VK ID Web login используется redirectUrl на фронтенде (обычно window.location.origin) и настройки в кабинете VK ID.
+# - VK_REDIRECT_URI на бэкенде используем для vk-user интеграции (OAuth callback для токена messages/offline).
 
 # VK Service
 VK_SERVICE_PORT=4003
@@ -658,16 +644,16 @@ BACKEND_SECRET=your-secret-key
 ## Следующие шаги
 
 1. **Проверить переменные окружения:**
-   - Убедиться, что VK_APP_ID, VK_APP_SECRET, VK_REDIRECT_URI установлены в `.env`
-   - VK_REDIRECT_URI должен указывать на бэкенд: `http://localhost:4001/api/vk/auth/callback` (dev) или `https://yourdomain.com/api/vk/auth/callback` (prod)
-   - Настроить VK_REDIRECT_URI в настройках VK приложения на https://vk.com/apps?act=manage
+   - **Frontend:** установить `VITE_VK_APP_ID` (публичный APP_ID VK ID приложения)
+   - **Backend:** установить `VK_APP_ID` (тот же APP_ID) и `VK_APP_SECRET`
+   - **Backend (интеграция автоответов):** `VK_REDIRECT_URI` должен указывать на callback интеграции: `http://localhost:4001/api/vk-user/callback` (dev) или `https://yourdomain.com/api/vk-user/callback` (prod)
+   - Настроить redirectUrl(ы) и callback(и) в настройках VK приложения/кабинета VK ID
    - Проверить наличие BACKEND_SECRET
 
 2. **Протестировать VK ID авторизацию:**
-   - Проверить, что кнопка "Войти через VK" редиректит на `/api/vk/auth/init`
-   - Проверить, что VK ID редиректит обратно с токенами в hash
-   - Проверить, что silent token обменивается на access token
-   - Проверить, что пользователь авторизуется и получает JWT токены
+   - Открыть `/auth` и убедиться, что рендерится VK ID OAuthList widget
+   - Пройти логин и проверить, что `Auth.exchangeCode(code, device_id)` возвращает `access_token`
+   - Проверить, что `POST /api/vk/auth/vkid-login` отдаёт наши JWT и пользователь попадает в `/app/chat`
 
 3. **Реализовать фронтенд для интеграции (приоритет):**
    - Начать с shared API клиентов (`vk-user.ts`)
