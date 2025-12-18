@@ -29,6 +29,7 @@ export const AssistantWidget = ({
   initialMentionOnly = false,
   onChange,
   readOnly = false,
+  showExtraSettings = true,
 }: AssistantWidgetProps) => {
   const { workspaces } = useWorkspace();
   const { roles } = useRole();
@@ -112,7 +113,7 @@ export const AssistantWidget = ({
             disabled={readOnly}
           />
 
-          {isMobile && (
+          {isMobile && showExtraSettings && (
             <ExtraSettings
               selectedMentionOnly={selectedMentionOnly}
               setSelectedMentionOnly={setSelectedMentionOnly}
@@ -120,7 +121,7 @@ export const AssistantWidget = ({
           )}
         </Layout>
 
-        {!isMobile && (
+        {!isMobile && showExtraSettings && (
           <ExtraSettings
             selectedMentionOnly={selectedMentionOnly}
             setSelectedMentionOnly={setSelectedMentionOnly}

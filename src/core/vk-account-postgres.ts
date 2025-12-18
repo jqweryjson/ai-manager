@@ -163,6 +163,100 @@ export async function updateVkAccountToken(
 }
 
 /**
+ * Обновляет auth-данные аккаунта (token + user_id_vk + статус).
+ * Используется для "1 пользователь = 1 vk_account" в vk-user OAuth callback.
+ */
+export async function updateVkAccountAuthData(
+  accountId: string,
+  userId: string,
+  params: {
+    accessToken: string;
+    refreshToken: string | null;
+    expiresAt: Date | null;
+    userIdVk: number | null;
+    status?: VkAccountStatus;
+  }
+): Promise<void> {
+  const encryptedAccessToken = encrypt(params.accessToken, BACKEND_SECRET);
+  const encryptedRefreshToken = params.refreshToken
+    ? encrypt(params.refreshToken, BACKEND_SECRET)
+    : null;
+
+  await withPostgres(async client => {
+    await client.query(
+      `UPDATE vk_accounts
+       SET access_token = $1,
+           refresh_token = $2,
+           expires_at = $3,
+           user_id_vk = $4,
+           status = $5,
+           updated_at = NOW()
+       WHERE id = $6 AND user_id = $7`,
+      [
+        encryptedAccessToken,
+        encryptedRefreshToken,
+        params.expiresAt,
+        params.userIdVk,
+        params.status ?? "connected",
+        accountId,
+        userId,
+      ]
+    );
+  });
+}
+
+/**
+ * MVP правило: 1 пользователь -> 1 VK аккаунт для автоответов.
+ * Если аккаунт уже есть, обновляем токены и возвращаем его, иначе создаём новый.
+ */
+export async function upsertUserVkAccount(params: {
+  userId: string;
+  accessToken: string;
+  refreshToken: string | null;
+  userIdVk: number | null;
+  expiresAt: Date | null;
+}): Promise<VkAccount> {
+  const accounts = await getUserVkAccounts(params.userId);
+  const primary = accounts[0];
+
+  if (!primary) {
+    return createVkAccount(
+      params.userId,
+      params.accessToken,
+      params.refreshToken,
+      params.userIdVk,
+      params.expiresAt
+    );
+  }
+
+  // Обновляем самый свежий аккаунт
+  await updateVkAccountAuthData(primary.id, params.userId, {
+    accessToken: params.accessToken,
+    refreshToken: params.refreshToken,
+    expiresAt: params.expiresAt,
+    userIdVk: params.userIdVk,
+    status: "connected",
+  });
+
+  // Для простоты MVP удаляем все остальные аккаунты пользователя
+  if (accounts.length > 1) {
+    await withPostgres(async client => {
+      await client.query(
+        `DELETE FROM vk_accounts
+         WHERE user_id = $1 AND id <> $2`,
+        [params.userId, primary.id]
+      );
+    });
+  }
+
+  const updated = await getVkAccount(primary.id, params.userId);
+  if (!updated) {
+    throw new Error("Failed to load updated VK account");
+  }
+  return updated;
+}
+
+/**
  * Обновляет статус аккаунта
  */
 export async function updateVkAccountStatus(

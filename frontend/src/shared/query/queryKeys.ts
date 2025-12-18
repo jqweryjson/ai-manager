@@ -17,4 +17,11 @@ export const queryKeys = {
     subscriptions: (accountId?: string) =>
       ["telegram-user", "subscriptions", accountId || "default"] as const,
   },
+  vkUser: {
+    status: ["vk-user", "status"] as const,
+    conversations: (accountId?: string) =>
+      ["vk-user", "conversations", accountId || "default"] as const,
+    subscriptions: (accountId?: string) =>
+      ["vk-user", "subscriptions", accountId || "default"] as const,
+  },
 };

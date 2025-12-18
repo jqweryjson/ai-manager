@@ -27,6 +27,28 @@ export declare function getUserVkAccounts(userId: string): Promise<VkAccount[]>;
  */
 export declare function updateVkAccountToken(accountId: string, userId: string, accessToken: string, refreshToken: string | null, expiresAt: Date | null): Promise<void>;
 /**
+ * Обновляет auth-данные аккаунта (token + user_id_vk + статус).
+ * Используется для "1 пользователь = 1 vk_account" в vk-user OAuth callback.
+ */
+export declare function updateVkAccountAuthData(accountId: string, userId: string, params: {
+    accessToken: string;
+    refreshToken: string | null;
+    expiresAt: Date | null;
+    userIdVk: number | null;
+    status?: VkAccountStatus;
+}): Promise<void>;
+/**
+ * MVP правило: 1 пользователь -> 1 VK аккаунт для автоответов.
+ * Если аккаунт уже есть, обновляем токены и возвращаем его, иначе создаём новый.
+ */
+export declare function upsertUserVkAccount(params: {
+    userId: string;
+    accessToken: string;
+    refreshToken: string | null;
+    userIdVk: number | null;
+    expiresAt: Date | null;
+}): Promise<VkAccount>;
+/**
  * Обновляет статус аккаунта
  */
 export declare function updateVkAccountStatus(accountId: string, userId: string, status: VkAccountStatus): Promise<void>;

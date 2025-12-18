@@ -3,6 +3,8 @@ import { Button } from "@consta/uikit/Button";
 import { IconCommentFilled } from "@consta/icons/IconCommentFilled";
 import { IconShare } from "@consta/icons/IconShare";
 import { IconSettings } from "@consta/icons/IconSettings";
+import { Text } from "@consta/uikit/Text";
+import { Layout } from "@consta/uikit/Layout";
 
 export const MobileBottomNav = () => {
   const navigate = useNavigate();
@@ -15,7 +17,25 @@ export const MobileBottomNav = () => {
       <div className="mobile-bottom-nav__button">
         <Button
           onlyIcon
-          iconLeft={IconCommentFilled}
+          style={{ width: "auto", padding: "0 var(--space-xs)" }}
+          iconLeft={() => (
+            <Layout
+              direction="column"
+              align="center"
+              gap="xs"
+              style={{ alignItems: "center" }}
+            >
+              <IconCommentFilled size="m" />
+              <Text
+                size="xs"
+                weight="bold"
+                view="secondary"
+                style={{ lineHeight: 1 }}
+              >
+                Чат
+              </Text>
+            </Layout>
+          )}
           view={isActive("/app/chat") ? "primary" : "clear"}
           size="m"
           title="Чат"
@@ -25,7 +45,25 @@ export const MobileBottomNav = () => {
       <div className="mobile-bottom-nav__button">
         <Button
           onlyIcon
-          iconLeft={IconShare}
+          style={{ width: "auto", padding: "0 var(--space-xs)" }}
+          iconLeft={() => (
+            <Layout
+              direction="column"
+              align="center"
+              gap="xs"
+              style={{ alignItems: "center" }}
+            >
+              <IconShare size="m" />
+              <Text
+                size="xs"
+                weight="bold"
+                view="secondary"
+                style={{ lineHeight: 1 }}
+              >
+                Интеграции
+              </Text>
+            </Layout>
+          )}
           view={isActive("/app/integrations") ? "primary" : "clear"}
           size="m"
           title="Интеграции"
@@ -35,7 +73,25 @@ export const MobileBottomNav = () => {
       <div className="mobile-bottom-nav__button">
         <Button
           onlyIcon
-          iconLeft={IconSettings}
+          style={{ width: "auto", padding: "0 var(--space-xs)" }}
+          iconLeft={() => (
+            <Layout
+              direction="column"
+              align="center"
+              gap="xs"
+              style={{ alignItems: "center" }}
+            >
+              <IconSettings size="m" />
+              <Text
+                size="xs"
+                weight="bold"
+                view="secondary"
+                style={{ lineHeight: 1 }}
+              >
+                Настройки
+              </Text>
+            </Layout>
+          )}
           view={isActive("/app/settings") ? "primary" : "clear"}
           size="m"
           title="Настройки"

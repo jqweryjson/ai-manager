@@ -102,6 +102,16 @@ body {
     left: 100%;
   }
 }
+
+@keyframes bgSize {
+  0% {
+    background-size: 200% 200%;
+  }
+  100% {
+    background-size: 100% 100%;
+  }
+}
+
 /* Фирменный фиолетово-розовый brand цвет с glow эффектом */
 .Theme_color_gpnDefault {
   /* --brand-purple: #a855f7;
@@ -128,6 +138,13 @@ body {
   }
 
   &.Theme_color_gpnDark {
+    background: linear-gradient(135deg, #0a0a0f 0%, #1a0a2e 50%, #0a0a0f 100%);
+    animation: bgSize 1s ease both;
+
+    .Text {
+      text-shadow: 0 0 40px rgba(0, 243, 255, 0.5);
+    }
+
     --active-gradient: linear-gradient(to right, transparent, #2b2337 40%);
     /* Основные цвета темы (с дорогим оранжевым для контраста) */
     --color-bg-default: #140720; /* Темно-фиолетовый */

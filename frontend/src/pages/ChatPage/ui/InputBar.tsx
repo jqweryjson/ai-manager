@@ -11,6 +11,7 @@ interface InputBarProps {
   onSend: () => void;
   pending: boolean;
   onKeyPress: (e: React.KeyboardEvent) => void;
+  disabled?: boolean;
 }
 
 export const InputBar = ({
@@ -19,6 +20,7 @@ export const InputBar = ({
   onSend,
   pending,
   onKeyPress,
+  disabled = false,
 }: InputBarProps) => {
   return (
     <div className="input-bar chat-input">
@@ -33,10 +35,10 @@ export const InputBar = ({
         />
         <Button
           className="input-bar__button-send chat-input__button-send"
-          iconLeft={IconSendMessage}
+          iconRight={IconSendMessage}
           label={pending ? "Поиск..." : "Отправить"}
           onClick={onSend}
-          disabled={!value.trim() || pending}
+          disabled={!value.trim() || pending || disabled}
           size="s"
         />
       </Layout>

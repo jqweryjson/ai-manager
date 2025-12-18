@@ -30,4 +30,7 @@ export interface AssistantWidgetProps {
 
   // Режим только для чтения (disabled для всех селектов)
   readOnly?: boolean;
+
+  // Показывать дополнительные настройки (по умолчанию true)
+  showExtraSettings?: boolean;
 }

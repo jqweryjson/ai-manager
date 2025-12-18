@@ -1,0 +1,22 @@
+.subscription-config-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-s);
+  padding-top: var(--space-3xs);
+}
+
+.subscription-config-panel__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3xs);
+  cursor: pointer;
+}
+
+.subscription-config-panel__buttons {
+  display: flex;
+  gap: var(--space-3xs);
+  align-items: center;
+}
+
+

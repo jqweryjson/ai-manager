@@ -75,7 +75,8 @@ export const Messages = ({ messages }: MessagesProps) => {
             }}
           >
             <Text size="l" view="ghost" align="center">
-              Начните диалог, и проверьте как отвечает ваш ассистент
+              Начните диалог, и проверьте как отвечает ваш ассистент на основе
+              выбранной роли и базы знаний
             </Text>
           </div>
         ) : (

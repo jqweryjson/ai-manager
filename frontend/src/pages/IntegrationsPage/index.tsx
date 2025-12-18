@@ -1,22 +1,27 @@
 import { useState } from "react";
 import { Layout } from "@consta/uikit/Layout";
 import { TelegramIntegrationCard } from "@/features/TelegramIntegration";
-import type { TelegramIntegrationCardProps } from "@/features/TelegramIntegration";
 import "./styles.css";
+
+type IntegrationCardBaseProps = {
+  isExpanded: boolean;
+  onExpand: (isExpanded: boolean) => void;
+};
 
 type IntegrationConfig = {
   id: string;
-  component: React.ComponentType<TelegramIntegrationCardProps>;
+  component: React.ComponentType<IntegrationCardBaseProps>;
   props: Omit<
-    TelegramIntegrationCardProps,
+    IntegrationCardBaseProps,
     "isExpanded" | "onExpand" | "onCollapse"
   >;
 };
 
 export const IntegrationsPage = () => {
+  // По умолчанию раскрываем Telegram-интеграцию
   const [expandedIntegrationId, setExpandedIntegrationId] = useState<
     string | null
-  >(null);
+  >("telegram");
 
   const integrations: IntegrationConfig[] = [
     {

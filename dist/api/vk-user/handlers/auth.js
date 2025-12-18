@@ -1,6 +1,6 @@
 import { getOAuthUrl, exchangeCodeForToken } from "../../../core/vk-oauth.js";
 import { getUserInfo } from "../../../core/vk-api.js";
-import { createVkAccount, } from "../../../core/vk-account-postgres.js";
+import { upsertUserVkAccount, } from "../../../core/vk-account-postgres.js";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:8002";
 /**
  * POST /api/vk-user/start - начало OAuth авторизации
@@ -68,14 +68,18 @@ export async function handleCallback(fastify, request, reply) {
             fastify.log.error(`Failed to get VK user info: ${error}`);
             return reply.redirect(`${FRONTEND_URL}/app/integrations?error=user_info_failed`);
         }
-        // Проверяем, есть ли уже аккаунт для этого пользователя
-        // TODO: Реализовать проверку существующих аккаунтов
-        // Создаем аккаунт в БД
         const expiresAt = expires_in
             ? new Date(Date.now() + expires_in * 1000)
             : null;
-        const account = await createVkAccount(userId, access_token, tokenResponse.refresh_token || null, vkUserId, expiresAt);
-        fastify.log.info(`✅ VK аккаунт создан: ${account.id} для пользователя ${userId}`);
+        // MVP: 1 пользователь -> 1 vk_account (upsert)
+        const account = await upsertUserVkAccount({
+            userId,
+            accessToken: access_token,
+            refreshToken: tokenResponse.refresh_token || null,
+            userIdVk: vkUserId,
+            expiresAt,
+        });
+        fastify.log.info(`✅ VK аккаунт подключен (upsert): ${account.id} для пользователя ${userId}`);
         // Сигнализируем VK Service, чтобы он начал слушать новый аккаунт
         try {
             const backendPort = Number(process.env.BACKEND_PORT) || 4001;

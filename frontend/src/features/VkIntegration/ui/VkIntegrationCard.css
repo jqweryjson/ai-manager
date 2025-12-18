@@ -1,0 +1,11 @@
+.vk-integration-card {
+  width: 100%;
+}
+
+.vk-integration-card__body {
+  flex: 1;
+  min-height: 0;
+  padding-right: var(--space-2xs);
+}
+
+

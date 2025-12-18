@@ -7,13 +7,12 @@
   justify-content: space-between;
   padding: var(--space-m) var(--space-xl);
   border-bottom: 1px solid var(--color-bg-border);
-  background: var(--color-bg-default);
   flex-shrink: 0;
 }
 
 @media (max-width: 767px) {
   .header {
-    padding: var(--space-m);
+    padding: var(--space-s);
     gap: var(--space-m);
   }
 }
@@ -77,7 +76,6 @@
   border-right: 1px solid var(--color-bg-border);
   padding: var(--space-m);
   gap: var(--space-s);
-  background: var(--color-bg-default);
   flex-shrink: 0;
 }
 

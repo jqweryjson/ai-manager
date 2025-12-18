@@ -3,9 +3,7 @@ import { AuthenticatedRequest } from "../../../middleware/auth.js";
 import { getOAuthUrl, exchangeCodeForToken } from "../../../core/vk-oauth.js";
 import { getUserInfo } from "../../../core/vk-api.js";
 import {
-  createVkAccount,
-  getVkAccount,
-  updateVkAccountStatus,
+  upsertUserVkAccount,
 } from "../../../core/vk-account-postgres.js";
 import { OAuthCallbackSchema } from "../schemas.js";
 
@@ -114,24 +112,21 @@ export async function handleCallback(
       );
     }
 
-    // Проверяем, есть ли уже аккаунт для этого пользователя
-    // TODO: Реализовать проверку существующих аккаунтов
-
-    // Создаем аккаунт в БД
     const expiresAt = expires_in
       ? new Date(Date.now() + expires_in * 1000)
       : null;
 
-    const account = await createVkAccount(
+    // MVP: 1 пользователь -> 1 vk_account (upsert)
+    const account = await upsertUserVkAccount({
       userId,
-      access_token,
-      tokenResponse.refresh_token || null,
-      vkUserId,
-      expiresAt
-    );
+      accessToken: access_token,
+      refreshToken: tokenResponse.refresh_token || null,
+      userIdVk: vkUserId,
+      expiresAt,
+    });
 
     fastify.log.info(
-      `✅ VK аккаунт создан: ${account.id} для пользователя ${userId}`
+      `✅ VK аккаунт подключен (upsert): ${account.id} для пользователя ${userId}`
     );
 
     // Сигнализируем VK Service, чтобы он начал слушать новый аккаунт

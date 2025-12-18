@@ -34,7 +34,11 @@ export const FileUploadSection = ({
       />
 
       <Button
-        label={uploadMutation.isPending ? "Загрузка..." : "Выбрать файл (.txt)"}
+        label={
+          uploadMutation.isPending
+            ? "Загрузка..."
+            : "Выбрать и загрузить файл (.txt)"
+        }
         view="secondary"
         size="s"
         onClick={() => document.getElementById("file-input")?.click()}
