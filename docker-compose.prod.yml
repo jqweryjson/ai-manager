@@ -11,7 +11,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
+    #ports:
       # Оставь только если нужен прямой доступ с хоста (например, для отладки)
       #- "8005:5432"
     volumes:
@@ -50,7 +50,7 @@ services:
       MINIO_ADDRESS: minio:9000
     volumes:
       - milvus_data:/var/lib/milvus
-    ports:
+    #ports:
      # - "19530:19530"
     depends_on:
       - etcd
@@ -105,9 +105,9 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
     command: minio server /minio_data --console-address ":9001"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+    #ports:
+      #- "9000:9000"
+      #- "9001:9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
@@ -135,7 +135,7 @@ services:
       -b 0.0.0.0
       -l 1080
       -u
-    ports:
+    #ports:
       #- "1080:1080"
     networks:
       - milvus
@@ -150,7 +150,7 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-admin123}
-    ports:
+    #ports:
       #- "5672:5672"
       #- "15672:15672"
     volumes:
@@ -203,8 +203,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      REDIS_HOST: redis
-      REDIS_PORT: "6379"
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT:  ${REDIS_PORT}
       MILVUS_HOST: milvus-standalone:19530
       EMBEDDINGS_WORKER_URL: http://embeddings-worker:5000
       # Если используешь прокси для Groq:
@@ -251,7 +251,7 @@ services:
         node dist/workers/telegram-llm-worker.js
       "
   # Порт наружу нужен только если хочешь ходить в HTTP‑API Telegram‑сервиса
-    ports:
+    #ports:
       #- "4002:4002"
     extra_hosts:
       - "host.docker.internal:host-gateway"
