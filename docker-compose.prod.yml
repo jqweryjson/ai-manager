@@ -1,5 +1,4 @@
 version: "3.9"
-
 services:
   # === PostgreSQL (основная БД приложения) ===
   postgres:
@@ -14,7 +13,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       # Оставь только если нужен прямой доступ с хоста (например, для отладки)
-      - "8005:5432"
+      #- "8005:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
@@ -25,6 +24,7 @@ services:
       retries: 5
     networks:
       - milvus
+
 
   # === Redis (кэш / сессии) ===
   redis:
@@ -51,7 +51,7 @@ services:
     volumes:
       - milvus_data:/var/lib/milvus
     ports:
-      - "19530:19530"
+     # - "19530:19530"
     depends_on:
       - etcd
       - minio
@@ -59,17 +59,17 @@ services:
       - milvus
 
   # Веб‑интерфейс к Milvus (Attu) — опционально, удобно для отладки
-  attu:
-    image: zilliz/attu:latest
-    container_name: attu
-    environment:
-      MILVUS_URL: milvus-standalone:19530
-    ports:
-      - "6001:3000"
-    depends_on:
-      - milvus-standalone
-    networks:
-      - milvus
+  #attu:
+   # image: zilliz/attu:latest
+    #container_name: attu
+    #environment:
+     # MILVUS_URL: milvus-standalone:19530
+    #ports:
+     # - "6001:3000"
+    #depends_on:
+      #- milvus-standalone
+    #networks:
+     # - milvus
 
   etcd:
     image: quay.io/coreos/etcd:v3.5.5
@@ -136,7 +136,7 @@ services:
       -l 1080
       -u
     ports:
-      - "1080:1080"
+      #- "1080:1080"
     networks:
       - milvus
 
@@ -151,8 +151,8 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-admin123}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      #- "5672:5672"
+      #- "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -223,6 +223,7 @@ services:
     networks:
       - milvus
 
+
   # === Telegram listener/sender/LLM worker ===
   telegram-listener:
     build:
@@ -249,9 +250,9 @@ services:
         node dist/workers/telegram-sender.js &
         node dist/workers/telegram-llm-worker.js
       "
-    # Порт наружу нужен только если хочешь ходить в HTTP‑API Telegram‑сервиса
+  # Порт наружу нужен только если хочешь ходить в HTTP‑API Telegram‑сервиса
     ports:
-      - "4002:4002"
+      #- "4002:4002"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
