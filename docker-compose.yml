@@ -103,7 +103,7 @@ services:
       - .env
     ports:
       - "1080:1080"
-    command: ss-local -s 45.151.72.236 -p 443 -k "1OeSSwOd3zFddpeiastQLH" -m chacha20-ietf-poly1305 -b 0.0.0.0 -l 1080 -u
+    command: ss-local -s 45.151.72.236 -p 443 -k "" -m chacha20-ietf-poly1305 -b 0.0.0.0 -l 1080 -u
     restart: unless-stopped
     networks:
       - milvus
